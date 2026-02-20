@@ -6,11 +6,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laratrust\Contracts\LaratrustUser;
+use Laratrust\Traits\HasRolesAndPermissions;
+use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements LaratrustUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRolesAndPermissions, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -20,7 +23,11 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
+        'status',
+        'image',
+        'otp',
     ];
 
     /**
@@ -31,6 +38,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'otp',
     ];
 
     /**
@@ -41,8 +49,20 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
+            'status' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    protected static function booted()
+    {
+        if (env('APP_ENV') === 'local') {
+            static::creating(function (self $model) {
+                $model->otp = 1111;
+            });
+            static::updating(function (self $model) {
+                $model->otp = 1111;
+            });
+        }
     }
 }
