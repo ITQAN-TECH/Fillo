@@ -93,8 +93,8 @@ class Customer extends Authenticatable
         return $this->hasMany(Rate::class);
     }
 
-    public function orderServices()
+    public function bookings()
     {
-        return $this->hasMany(OrderService::class);
+        return $this->hasMany(Booking::class);
     }
 }

@@ -13,14 +13,6 @@ class RatePermissionsSeeder extends Seeder
      */
     public function run(): void
     {
-
-        Rate::firstOrCreate([
-            'rateable_id' => 1,
-            'rateable_type' => 'App\Models\Service',
-            'rate' => 5,
-            'customer_id' => 1,
-            'comment' => 'This is a test comment',
-        ]);
         Permission::firstOrCreate([
             'name' => 'delete-rates',
             'display_name' => 'حذف التقييمات',

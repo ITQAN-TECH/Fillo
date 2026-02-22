@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Facades\Currency;
 
-class OrderService extends Model
+class Booking extends Model
 {
     protected $fillable = [
         'service_id',
@@ -64,7 +64,7 @@ class OrderService extends Model
         'service',
         'customer',
         'coupon',
-        'customer_address',
+        'customerAddress',
     ];
 
     public function getConvertedServiceProviderPriceAttribute()
@@ -134,5 +134,10 @@ class OrderService extends Model
     public function customerAddress()
     {
         return $this->belongsTo(CustomerAddress::class);
+    }
+
+    public function payment()
+    {
+        return $this->hasOne(Payment::class);
     }
 }

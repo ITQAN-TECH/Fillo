@@ -18,6 +18,7 @@ use App\Http\Controllers\api\v1\admin\RoleController;
 use App\Http\Controllers\api\v1\admin\SettingController;
 use App\Http\Controllers\api\v1\admin\SupportChatController;
 use App\Http\Controllers\api\v1\admin\ServiceProviderController;
+use App\Http\Controllers\api\v1\admin\BookingController;
 use App\Http\Controllers\api\v1\admin\ServiceController;
 use App\Http\Controllers\api\v1\admin\RateController;
 use App\Http\Controllers\api\v1\admin\CouponController;
@@ -110,6 +111,13 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
     Route::post('coupons/{coupon_id}', [CouponController::class, 'update']);
     Route::delete('coupons/{coupon_id}', [CouponController::class, 'destroy']);
     Route::post('coupons/change_status/{coupon_id}', [CouponController::class, 'changeStatus']);
+
+    // Booking Routes
+    Route::get('bookings', [BookingController::class, 'index']);
+    Route::get('bookings/{booking_id}', [BookingController::class, 'show']);
+    Route::post('bookings/{booking_id}/confirm', [BookingController::class, 'confirmBooking']);
+    Route::post('bookings/{booking_id}/complete', [BookingController::class, 'completeBooking']);
+    Route::post('bookings/{booking_id}/cancel', [BookingController::class, 'cancelBooking']);
 
     // Rate Routes
     Route::delete('rates/{rate_id}', [RateController::class, 'destroy']);

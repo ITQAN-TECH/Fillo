@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ServicesPermissionsSeeder::class);
         $this->call(RatePermissionsSeeder::class);
         $this->call(CouponPermissionsSeeder::class);
+        $this->call(BookingPermissionsService::class);
 
         \App\Models\User::firstOrCreate([
             'name' => 'Admin',

@@ -17,7 +17,8 @@ return new class extends Migration
             $table->decimal('rate', 2, 1);
             $table->longText('comment')->nullable();
             $table->foreignId('customer_id')->constrained('customers');
-            $table->unique(['rateable_id', 'rateable_type', 'customer_id']);
+            $table->foreignId('booking_id')->nullable()->constrained('bookings')->nullOnDelete();
+            $table->unique(['rateable_id', 'rateable_type', 'customer_id', 'booking_id']);
             $table->timestamps();
         });
     }

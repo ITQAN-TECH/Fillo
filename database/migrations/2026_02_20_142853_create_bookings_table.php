@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('order_services', function (Blueprint $table) {
+        Schema::create('bookings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('service_id')->constrained('services');
             $table->foreignId('customer_id')->constrained('customers');
@@ -28,7 +28,7 @@ return new class extends Migration
             $table->float('profit_amount_after_discount')->default(0);
             $table->dateTime('order_date');
             $table->dateTime('delivery_date')->nullable();
-            $table->enum('order_status', ['pending', 'confirmed', 'completed', 'cancelled', 'shipped', 'delivered'])->default('pending');
+            $table->enum('order_status', ['pending', 'confirmed', 'completed', 'cancelled'])->default('pending');
             $table->timestamps();
         });
     }
@@ -38,6 +38,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('order_services');
+        Schema::dropIfExists('bookings');
     }
 };

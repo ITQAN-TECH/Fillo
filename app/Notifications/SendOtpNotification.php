@@ -36,6 +36,7 @@ class SendOtpNotification extends Notification
         return (new MailMessage)
             ->line('أنت تحاول تغيير كلمة المرور الخاصة بك على موقعنا')
             ->line("كود التحقق الخاص بك {$this->otp}")
-            ->line('Thank you for using our application!');
+            ->line('Thank you for using our application!')
+            ->line('إذا لم تقم بطلب تغيير كلمة المرور، يرجى تجاهل هذه الرسالة.');
     }
 }

@@ -8,6 +8,7 @@ use App\Http\Controllers\api\v1\customers\notifications\database\DatabaseNotific
 use App\Http\Controllers\api\v1\customers\ProfileController;
 use App\Http\Controllers\api\v1\customers\SupportChatController;
 use App\Http\Controllers\api\v1\customers\CustomerAddressController;
+use App\Http\Controllers\api\v1\customers\ServiceController;
 use App\Http\Middleware\CheckForCustomerStatus;
 use Illuminate\Support\Facades\Route;
 
@@ -56,6 +57,14 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
     Route::delete('favorites/{following_id}', [FavoriteController::class, 'destroy']);
     Route::delete('empty_favorites', [FavoriteController::class, 'empty']);
 
+    // Service Booking Routes
+    Route::post('services/calculate_price', [ServiceController::class, 'calculatePrice']);
+    Route::post('services/initiate_booking', [ServiceController::class, 'initiateBooking']);
+    Route::post('services/pay_booking', [ServiceController::class, 'payBooking']);
+    Route::get('bookings', [ServiceController::class, 'myBookings']);
+    Route::get('bookings/{booking_id}', [ServiceController::class, 'bookingDetails']);
+    Route::post('bookings/{booking_id}/cancel', [ServiceController::class, 'cancelBooking']);
+    Route::post('bookings/{booking_id}/rate', [ServiceController::class, 'rateService']);
 });
 Route::group(['prefix' => 'v1/customers/'], function () {
 
