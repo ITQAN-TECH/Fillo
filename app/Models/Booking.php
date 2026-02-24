@@ -44,6 +44,7 @@ class Booking extends Model
         'converted_service_provider_price_after_discount',
         'converted_sale_price_after_discount',
         'converted_profit_amount_after_discount',
+        'can_rate',
     ];
 
     protected $casts = [
@@ -58,6 +59,7 @@ class Booking extends Model
         'service_provider_price_after_discount' => 'float',
         'sale_price_after_discount' => 'float',
         'profit_amount_after_discount' => 'float',
+        'can_rate' => 'boolean',
     ];
 
     protected $with = [
@@ -114,6 +116,11 @@ class Booking extends Model
         $rate = Currency::getRate('SAR');
 
         return round($this->profit_amount_after_discount * $rate, 2);
+    }
+
+    public function getCanRateAttribute()
+    {
+        return $this->order_status == 'completed' && ! $this->service->rates()->where('customer_id', $this->customer_id)->where('booking_id', $this->id)->exists();
     }
 
     public function service()
