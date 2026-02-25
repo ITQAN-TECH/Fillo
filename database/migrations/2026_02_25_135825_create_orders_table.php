@@ -30,6 +30,8 @@ return new class extends Migration
             $table->float('shipping_fee')->default(0);
             $table->float('total_price');
             $table->enum('order_status', ['pending', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'refunded'])->default('pending');
+            $table->enum('cancellation_reason', ['administrative', 'customer_not_received'])->nullable();
+            $table->text('admin_notes')->nullable();
             $table->timestamps();
         });
     }

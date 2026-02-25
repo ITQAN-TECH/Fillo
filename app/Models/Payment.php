@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Facades\Currency;
+use Illuminate\Database\Eloquent\Model;
 
 class Payment extends Model
 {
@@ -13,6 +13,7 @@ class Payment extends Model
         'payment_method',
         'transaction_id',
         'amount',
+        'refunded_amount',
         'currency',
         'status',
         'payment_response',
@@ -20,6 +21,7 @@ class Payment extends Model
 
     protected $casts = [
         'amount' => 'float',
+        'refunded_amount' => 'float',
         'status' => 'string',
     ];
 
@@ -30,10 +32,12 @@ class Payment extends Model
 
     protected $appends = [
         'converted_amount',
+        'converted_refunded_amount',
     ];
 
     protected $hidden = [
         'amount',
+        'refunded_amount',
     ];
 
     public function booking()
@@ -49,6 +53,14 @@ class Payment extends Model
     public function getConvertedAmountAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->amount * $rate, 2);
+    }
+
+    public function getConvertedRefundedAmountAttribute()
+    {
+        $rate = Currency::getRate('SAR');
+
+        return round($this->refunded_amount * $rate, 2);
     }
 }

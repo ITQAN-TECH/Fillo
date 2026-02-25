@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers\api\v1\customers;
 
+use App\Facades\Currency;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
-use App\Models\Product;
 use App\Models\Coupon;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Facades\Currency;
 
 class CartController extends Controller
 {
-
     public function show(Request $request)
     {
         $request->validate([
@@ -28,7 +27,7 @@ class CartController extends Controller
         $couponId = null;
         $couponCode = null;
         if ($request->coupon_code) {
-            $coupon = Coupon::whereIn('type', ['product','both_products_and_services'])->where('code', $request->coupon_code)->where('status', true)->where('expiry_date', '>', now())->first();
+            $coupon = Coupon::whereIn('type', ['product', 'both_products_and_services'])->where('code', $request->coupon_code)->where('status', true)->where('expiry_date', '>', now())->first();
             if ($coupon) {
                 $discountPercentage = $coupon->discount_percentage;
                 $discountAmount = ($totalPrice * $discountPercentage) / 100;
@@ -40,6 +39,7 @@ class CartController extends Controller
         $shippingFee = Setting::first()?->shipping_fee ?? 0;
         $totalPriceAfterDiscountAndShippingFee = $totalPriceAfterDiscount + $shippingFee;
         $rate = Currency::getRate('SAR');
+
         return response()->json([
             'success' => true,
             'message' => __('responses.Cart items'),
@@ -66,7 +66,7 @@ class CartController extends Controller
         $product = Product::where('id', $productVariant->product_id)->where('status', true)->firstOrFail();
         try {
             $cart = Cart::where('customer_id', $customer->id)->where('product_id', $product->id)->where('product_variant_id', $productVariant->id)->first();
-            if (!$productVariant->status || !$product->status || $productVariant->quantity <= 0) {
+            if (! $productVariant->status || ! $product->status || $productVariant->quantity <= 0) {
                 return response()->json([
                     'success' => false,
                     'message' => __('responses.Product variant is not available'),
@@ -100,6 +100,7 @@ class CartController extends Controller
                     'total_price' => $productVariant->sale_price * $request->quantity,
                 ]);
             }
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.Product added to Cart successfully!.'),
@@ -126,6 +127,7 @@ class CartController extends Controller
             ], 400);
         }
         $cart->update(['quantity' => $cart->quantity + $request->quantity]);
+
         return response()->json([
             'success' => true,
             'message' => __('responses.Product quantity increased successfully!.'),
@@ -141,12 +143,14 @@ class CartController extends Controller
         $cart = Cart::where('customer_id', Auth::guard('customers')->id())->where('id', $cart_id)->firstOrFail();
         if ($cart->quantity <= $request->quantity) {
             $cart->delete();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.Product removed from Cart successfully!.'),
             ], 200);
         }
         $cart->update(['quantity' => $cart->quantity - $request->quantity]);
+
         return response()->json([
             'success' => true,
             'message' => __('responses.Product removed from Cart successfully!.'),
@@ -171,7 +175,6 @@ class CartController extends Controller
             ], 400);
         }
     }
-
 
     public function destroyAll()
     {

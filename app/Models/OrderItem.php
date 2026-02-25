@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Facades\Currency;
+use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
@@ -15,22 +15,22 @@ class OrderItem extends Model
         'quantity',
         'total_price',
     ];
-    
+
     protected $casts = [
         'price' => 'decimal:2',
         'total_price' => 'decimal:2',
     ];
-    
+
     protected $with = [
         'product',
         'productVariant',
     ];
-    
+
     protected $hidden = [
         'price',
         'total_price',
     ];
-    
+
     protected $appends = [
         'converted_price',
         'converted_total_price',
@@ -39,12 +39,14 @@ class OrderItem extends Model
     public function getConvertedPriceAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->price * $rate, 2);
     }
 
     public function getConvertedTotalPriceAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->total_price * $rate, 2);
     }
 

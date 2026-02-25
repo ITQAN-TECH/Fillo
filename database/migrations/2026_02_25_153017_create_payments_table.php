@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('payment_method')->nullable();
             $table->string('transaction_id')->nullable();
             $table->float('amount');
+            $table->float('refunded_amount')->default(0);
             $table->string('currency')->default('SAR');
             $table->enum('status', ['pending', 'completed', 'failed', 'refunded'])->default('pending');
             $table->text('payment_response')->nullable();

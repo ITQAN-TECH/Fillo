@@ -13,7 +13,10 @@ use App\Http\Controllers\api\v1\admin\CustomerController;
 use App\Http\Controllers\api\v1\admin\FaqController;
 use App\Http\Controllers\api\v1\admin\ForgetPasswordController;
 use App\Http\Controllers\api\v1\admin\NotificationFromAdminController;
+use App\Http\Controllers\api\v1\admin\OrderCancellationRequestController;
+use App\Http\Controllers\api\v1\admin\OrderController;
 use App\Http\Controllers\api\v1\admin\PageController;
+use App\Http\Controllers\api\v1\admin\PaymentController;
 use App\Http\Controllers\api\v1\admin\ProductController;
 use App\Http\Controllers\api\v1\admin\ProfileController;
 use App\Http\Controllers\api\v1\admin\RateController;
@@ -122,6 +125,28 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
     Route::post('bookings/{booking_id}/complete', [BookingController::class, 'completeBooking']);
     Route::post('bookings/{booking_id}/cancel', [BookingController::class, 'cancelBooking']);
 
+    // Order Routes
+    Route::get('orders', [OrderController::class, 'index']);
+    Route::get('orders/{order_id}', [OrderController::class, 'show']);
+    Route::post('orders/{order_id}/confirm', [OrderController::class, 'confirmOrder']);
+    Route::post('orders/{order_id}/reject', [OrderController::class, 'rejectOrder']);
+    Route::post('orders/{order_id}/ship', [OrderController::class, 'shipOrder']);
+    Route::post('orders/{order_id}/deliver', [OrderController::class, 'deliverOrder']);
+    Route::post('orders/{order_id}/complete', [OrderController::class, 'completeOrder']);
+    Route::post('orders/{order_id}/cancel', [OrderController::class, 'cancelOrder']);
+    Route::post('orders/{order_id}/refund', [OrderController::class, 'refundOrder']);
+
+    // Order Cancellation Request Routes
+    Route::get('order_cancellation_requests', [OrderCancellationRequestController::class, 'index']);
+    Route::get('order_cancellation_requests/{request_id}', [OrderCancellationRequestController::class, 'show']);
+    Route::post('order_cancellation_requests/{request_id}/approve', [OrderCancellationRequestController::class, 'approve']);
+    Route::post('order_cancellation_requests/{request_id}/reject', [OrderCancellationRequestController::class, 'reject']);
+
+    // Payment Routes
+    Route::get('payments', [PaymentController::class, 'index']);
+    Route::get('payments/statistics', [PaymentController::class, 'statistics']);
+    Route::get('payments/{payment_id}', [PaymentController::class, 'show']);
+
     // Rate Routes
     Route::delete('rates/{rate_id}', [RateController::class, 'destroy']);
 
@@ -197,10 +222,6 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
 
     // Report Routes
     Route::get('report', [ReportController::class, 'index']);
-    Route::get('report/general_report', [ReportController::class, 'generalReport']);
-    Route::get('report/top_countries', [ReportController::class, 'topCountriesReport']);
-    Route::get('report/age_groups', [ReportController::class, 'ageGroupsReport']);
-    Route::get('report/identity', [ReportController::class, 'identityReport']);
 });
 
 Route::group(['prefix' => 'v1/dashboard'], function () {

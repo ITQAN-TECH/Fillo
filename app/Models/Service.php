@@ -123,4 +123,9 @@ class Service extends Model
     {
         return $this->morphMany(Feature::class, 'featureable');
     }
+
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class);
+    }
 }

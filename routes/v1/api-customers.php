@@ -1,15 +1,16 @@
 <?php
 
 use App\Http\Controllers\api\v1\customers\AuthController;
+use App\Http\Controllers\api\v1\customers\CartController;
 use App\Http\Controllers\api\v1\customers\CustomerAddressController;
 use App\Http\Controllers\api\v1\customers\FavoriteController;
 use App\Http\Controllers\api\v1\customers\FCMToken\FCMTokenController;
 use App\Http\Controllers\api\v1\customers\ForgetPasswordController;
 use App\Http\Controllers\api\v1\customers\notifications\database\DatabaseNotificationController;
+use App\Http\Controllers\api\v1\customers\OrderController;
 use App\Http\Controllers\api\v1\customers\ProfileController;
 use App\Http\Controllers\api\v1\customers\ServiceController;
 use App\Http\Controllers\api\v1\customers\SupportChatController;
-use App\Http\Controllers\api\v1\customers\CartController;
 use App\Http\Middleware\CheckForCustomerStatus;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +67,14 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
     Route::post('cart/{cart_id}/minus', [CartController::class, 'minus']);
     Route::delete('cart/{cart_id}', [CartController::class, 'destroy']);
     Route::delete('empty_cart', [CartController::class, 'destroyAll']);
+
+    // Order Routes
+    Route::get('orders', [OrderController::class, 'index']);
+    Route::get('orders/{order_id}', [OrderController::class, 'show']);
+    Route::post('orders', [OrderController::class, 'store']);
+    Route::post('orders/{order_id}/request_cancellation', [OrderController::class, 'requestCancellation']);
+    Route::get('cancellation_requests', [OrderController::class, 'myCancellationRequests']);
+    Route::get('cancellation_requests/{request_id}', [OrderController::class, 'showCancellationRequest']);
 
     // Service Booking Routes
     Route::post('services/calculate_price', [ServiceController::class, 'calculatePrice']);

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Facades\Currency;
+use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
@@ -17,6 +17,7 @@ class Order extends Model
         'national_address_short_number',
         'coupon_id',
         'coupon_code',
+        'order_number',
         'subtotal_price',
         'discount_percentage',
         'discount_amount',
@@ -24,6 +25,8 @@ class Order extends Model
         'shipping_fee',
         'total_price',
         'order_status',
+        'cancellation_reason',
+        'admin_notes',
     ];
 
     protected $casts = [
@@ -63,30 +66,35 @@ class Order extends Model
     public function getConvertedSubtotalPriceAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->subtotal_price * $rate, 2);
     }
 
     public function getConvertedDiscountAmountAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->discount_amount * $rate, 2);
     }
 
     public function getConvertedSubtotalPriceAfterDiscountAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->subtotal_price_after_discount * $rate, 2);
     }
 
     public function getConvertedShippingFeeAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->shipping_fee * $rate, 2);
     }
 
     public function getConvertedTotalPriceAttribute()
     {
         $rate = Currency::getRate('SAR');
+
         return round($this->total_price * $rate, 2);
     }
 
@@ -118,5 +126,20 @@ class Order extends Model
     public function coupon()
     {
         return $this->belongsTo(Coupon::class);
+    }
+
+    public function payment()
+    {
+        return $this->hasOne(Payment::class);
+    }
+
+    public function cancellationRequests()
+    {
+        return $this->hasMany(OrderCancellationRequest::class);
+    }
+
+    public function latestCancellationRequest()
+    {
+        return $this->hasOne(OrderCancellationRequest::class)->latestOfMany();
     }
 }

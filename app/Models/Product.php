@@ -126,4 +126,9 @@ class Product extends Model
             $query->where('status', true)->where('quantity', '>', 0);
         });
     }
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
 }

@@ -36,6 +36,9 @@ class DatabaseSeeder extends Seeder
         $this->call(CouponPermissionsSeeder::class);
         $this->call(BookingPermissionsService::class);
         $this->call(ProductPermissionsSeeder::class);
+        $this->call(OrderPermissionsSeeder::class);
+        $this->call(OrderCancellationRequestPermissionsSeeder::class);
+        $this->call(PaymentPermissionsSeeder::class);
         $this->call(ColorSeeder::class);
         $this->call(SizeSeeder::class);
 

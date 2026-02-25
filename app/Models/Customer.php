@@ -126,5 +126,4 @@ class Customer extends Authenticatable
     {
         return $this->hasMany(Cart::class);
     }
-
 }

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Facades\Currency;
+use Illuminate\Database\Eloquent\Model;
 
 class Cart extends Model
 {

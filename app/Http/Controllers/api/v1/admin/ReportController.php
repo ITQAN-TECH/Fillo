@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\api\v1\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Country;
+use App\Models\Booking;
 use App\Models\Customer;
-use App\Models\CustomerIdentity;
-use App\Models\Package;
-use App\Models\Subscription;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Models\Product;
+use App\Models\Service;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -18,8 +19,31 @@ class ReportController extends Controller
         $report = [];
         $report['total_customers_count'] = Customer::count();
         $report['total_active_customers_count'] = Customer::where('status', true)->count();
-        $report['total_customer_identities_count'] = CustomerIdentity::where('status', 'pending')->count();
-        $report['total_revenue_in_this_month'] = Subscription::whereMonth('created_at', now()->month)->sum('price');
+
+        // Revenue Statistics
+        $report['revenue'] = $this->getRevenueStatistics();
+
+        // Revenue by Payment Method
+        $report['revenue_by_payment_method'] = $this->getRevenueByPaymentMethod();
+
+        // Last 3 Invoices
+        $report['last_invoices'] = Payment::with(['order.customer', 'booking.customer'])
+            ->where('status', 'completed')
+            ->latest()
+            ->take(3)
+            ->get();
+
+        // Order Statistics
+        $report['order_statistics'] = $this->getOrderStatistics();
+
+        // Service Statistics
+        $report['service_statistics'] = $this->getServiceStatistics();
+
+        // Top 4 Services
+        $report['top_services'] = $this->getTopServices();
+
+        // Top 4 Products
+        $report['top_products'] = $this->getTopProducts();
 
         return response()->json([
             'success' => true,
@@ -28,342 +52,262 @@ class ReportController extends Controller
         ]);
     }
 
-    public function generalReport()
+    private function getRevenueStatistics()
     {
-        $monthlyData = [];
-        $previousMonthNewCustomers = 0;
+        $revenue = [];
 
-        for ($i = 11; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
-            $month = $date->format('Y-m');
-            $monthName = $date->locale(app()->getLocale())->translatedFormat('F Y');
+        // Daily Revenue
+        $revenue['daily'] = $this->calculateRevenue('day', 1);
 
-            // عدد المستخدمين المسجلين في هذا الشهر
-            $newCustomers = Customer::whereYear('created_at', $date->year)
-                ->whereMonth('created_at', $date->month)
-                ->count();
+        // Weekly Revenue
+        $revenue['weekly'] = $this->calculateRevenue('week', 1);
 
-            // إجمالي المستخدمين حتى نهاية هذا الشهر
-            $totalCustomers = Customer::where('created_at', '<=', $date->endOfMonth())
-                ->count();
+        // Monthly Revenue
+        $revenue['monthly'] = $this->calculateRevenue('month', 1);
 
-            // حساب معدل النمو مقارنة مع الشهر الماضي
-            $growthRate = null;
-            if ($previousMonthNewCustomers > 0) {
-                $growthRate = round((($newCustomers - $previousMonthNewCustomers) / $previousMonthNewCustomers) * 100, 1);
-            } elseif ($previousMonthNewCustomers == 0 && $newCustomers > 0) {
-                $growthRate = 100; // نمو 100% إذا كان الشهر السابق صفر والحالي فيه مستخدمين
-            } elseif ($previousMonthNewCustomers == 0 && $newCustomers == 0) {
-                $growthRate = 0; // لا يوجد نمو
-            }
+        // Yearly Revenue
+        $revenue['yearly'] = $this->calculateRevenue('year', 1);
 
-            $monthlyData[] = [
-                'month' => $month,
-                'month_name' => $monthName,
-                'new_customers' => $newCustomers,
-                'total_customers' => $totalCustomers,
-                'growth_rate' => $growthRate, // معدل النمو بالنسبة المئوية
-            ];
-
-            // حفظ عدد المستخدمين الجدد للشهر الحالي ليصبح الشهر السابق في التكرار القادم
-            $previousMonthNewCustomers = $newCustomers;
-        }
-
-        // حساب معدل النمو للشهر الحالي مقارنة بالشهر الماضي
-        $currentMonthNewCustomers = Customer::whereYear('created_at', now()->year)
-            ->whereMonth('created_at', now()->month)
-            ->count();
-
-        $lastMonthNewCustomers = Customer::whereYear('created_at', now()->subMonth()->year)
-            ->whereMonth('created_at', now()->subMonth()->month)
-            ->count();
-
-        $currentMonthGrowthRate = null;
-        if ($lastMonthNewCustomers > 0) {
-            $currentMonthGrowthRate = round((($currentMonthNewCustomers - $lastMonthNewCustomers) / $lastMonthNewCustomers) * 100, 1);
-        } elseif ($lastMonthNewCustomers == 0 && $currentMonthNewCustomers > 0) {
-            $currentMonthGrowthRate = 100;
-        } elseif ($lastMonthNewCustomers == 0 && $currentMonthNewCustomers == 0) {
-            $currentMonthGrowthRate = 0;
-        }
-
-        $totalCustomers = Customer::count();
-
-        $report = [
-            'total_customers' => $totalCustomers,
-            'active_customers' => Customer::where('status', true)->count(),
-            'inactive_customers' => Customer::where('status', false)->count(),
-            'average_between_active_and_inactive_customers' => round(Customer::where('status', true)->count() /
-                ($totalCustomers == 0 ? 1 : $totalCustomers) * 100, 1),
-            'current_month_new_customers' => $currentMonthNewCustomers,
-            'last_month_new_customers' => $lastMonthNewCustomers,
-            'current_month_growth_rate' => $currentMonthGrowthRate,
-        ];
-
-        // الباقات الموجودة + عدد ونسبة الذكور والإناث في كل باقة (حسب الاشتراك النشط حالياً)
-        $packages = Package::orderBy('id')->get();
-        $subscriptionsByPackage = [];
-
-        foreach ($packages as $package) {
-            $malesCount = Customer::whereHas('activeSubscription', function ($q) use ($package) {
-                $q->where('package_id', $package->id);
-            })->where('gender', 'male')->count();
-
-            $femalesCount = Customer::whereHas('activeSubscription', function ($q) use ($package) {
-                $q->where('package_id', $package->id);
-            })->where('gender', 'female')->count();
-
-            $total = $malesCount + $femalesCount;
-            $percentage = $totalCustomers > 0 ? round(($total / $totalCustomers) * 100, 2) : 0;
-
-            $subscriptionsByPackage[] = [
-                'package_id' => $package->id,
-                'package_ar_name' => $package->ar_name,
-                'package_en_name' => $package->en_name,
-                'total' => $total,
-                'males_count' => $malesCount,
-                'females_count' => $femalesCount,
-                'percentage' => $percentage,
-            ];
-        }
-
-        // الاشتراك المجاني: مستخدمون بدون اشتراك نشط حالياً
-        $noSubscriptionMales = Customer::whereDoesntHave('activeSubscription')->where('gender', 'male')->count();
-        $noSubscriptionFemales = Customer::whereDoesntHave('activeSubscription')->where('gender', 'female')->count();
-        $noSubscriptionTotal = $noSubscriptionMales + $noSubscriptionFemales;
-        $noSubscriptionPercentage = $totalCustomers > 0 ? round(($noSubscriptionTotal / $totalCustomers) * 100, 2) : 0;
-
-        $subscriptionsByPackage[] = [
-            'package_id' => null,
-            'package_ar_name' => trans('responses.free_subscription', [], 'ar'),
-            'package_en_name' => trans('responses.free_subscription', [], 'en'),
-            'total' => $noSubscriptionTotal,
-            'males_count' => $noSubscriptionMales,
-            'females_count' => $noSubscriptionFemales,
-            'percentage' => $noSubscriptionPercentage,
-        ];
-
-        return response()->json([
-            'success' => true,
-            'message' => __('responses.general report'),
-            'report' => $report,
-            'monthly_customers_growth' => $monthlyData,
-            'subscriptions_by_package' => $subscriptionsByPackage,
-        ]);
+        return $revenue;
     }
 
-    public function topCountriesReport(Request $request)
+    private function calculateRevenue($period, $offset)
     {
-        $request->validate([
-            'period' => 'sometimes|nullable|in:last_7_days,last_month,all_time',
-        ]);
+        $currentStart = $this->getPeriodStart($period, 0);
+        $currentEnd = $this->getPeriodEnd($period, 0);
+        $previousStart = $this->getPeriodStart($period, $offset);
+        $previousEnd = $this->getPeriodEnd($period, $offset);
 
-        $period = $request->input('period', 'all_time');
+        // Current Period Revenue
+        $currentOrdersRevenue = Payment::whereNotNull('order_id')
+            ->where('status', 'completed')
+            ->whereBetween('created_at', [$currentStart, $currentEnd])
+            ->sum('amount');
 
-        // بناء الـ query حسب الفترة المطلوبة
-        $query = Customer::query();
+        $currentBookingsRevenue = Payment::whereNotNull('booking_id')
+            ->where('status', 'completed')
+            ->whereBetween('created_at', [$currentStart, $currentEnd])
+            ->sum('amount');
 
+        $currentTotalRevenue = $currentOrdersRevenue + $currentBookingsRevenue;
+
+        // Previous Period Revenue
+        $previousOrdersRevenue = Payment::whereNotNull('order_id')
+            ->where('status', 'completed')
+            ->whereBetween('created_at', [$previousStart, $previousEnd])
+            ->sum('amount');
+
+        $previousBookingsRevenue = Payment::whereNotNull('booking_id')
+            ->where('status', 'completed')
+            ->whereBetween('created_at', [$previousStart, $previousEnd])
+            ->sum('amount');
+
+        $previousTotalRevenue = $previousOrdersRevenue + $previousBookingsRevenue;
+
+        // Calculate Improvement Percentage
+        $totalImprovement = $this->calculateImprovement($currentTotalRevenue, $previousTotalRevenue);
+        $ordersImprovement = $this->calculateImprovement($currentOrdersRevenue, $previousOrdersRevenue);
+        $bookingsImprovement = $this->calculateImprovement($currentBookingsRevenue, $previousBookingsRevenue);
+
+        return [
+            'total_revenue' => round($currentTotalRevenue, 2),
+            'orders_revenue' => round($currentOrdersRevenue, 2),
+            'bookings_revenue' => round($currentBookingsRevenue, 2),
+            'total_improvement_percentage' => round($totalImprovement, 2),
+            'orders_improvement_percentage' => round($ordersImprovement, 2),
+            'bookings_improvement_percentage' => round($bookingsImprovement, 2),
+            'period_start' => $currentStart->format('Y-m-d H:i:s'),
+            'period_end' => $currentEnd->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    private function getPeriodStart($period, $offset)
+    {
         switch ($period) {
-            case 'last_7_days':
-                $query->where('created_at', '>=', Carbon::now()->subDays(7));
-                break;
-            case 'last_month':
-                $query->where('created_at', '>=', Carbon::now()->subMonth());
-                break;
-            case 'all_time':
-            default:
-                // لا نضيف أي شرط للفترة الزمنية
-                break;
+            case 'day':
+                return Carbon::today()->subDays($offset)->startOfDay();
+            case 'week':
+                return Carbon::now()->startOfWeek()->subWeeks($offset);
+            case 'month':
+                return Carbon::now()->startOfMonth()->subMonths($offset);
+            case 'year':
+                return Carbon::now()->startOfYear()->subYears($offset);
+        }
+    }
+
+    private function getPeriodEnd($period, $offset)
+    {
+        switch ($period) {
+            case 'day':
+                return Carbon::today()->subDays($offset)->endOfDay();
+            case 'week':
+                return Carbon::now()->endOfWeek()->subWeeks($offset);
+            case 'month':
+                return Carbon::now()->endOfMonth()->subMonths($offset);
+            case 'year':
+                return Carbon::now()->endOfYear()->subYears($offset);
+        }
+    }
+
+    private function calculateImprovement($current, $previous)
+    {
+        if ($previous == 0) {
+            return $current > 0 ? 100 : 0;
         }
 
-        // جلب أكثر 5 دول فيها مستخدمين
-        $topCountries = Country::withCount(['customers' => function ($q) use ($query) {
-            $q->whereIn('id', $query->pluck('id'));
-        }])
-            ->having('customers_count', '>', 0)
-            ->orderBy('customers_count', 'desc')
-            ->limit(5)
+        return (($current - $previous) / $previous) * 100;
+    }
+
+    private function getRevenueByPaymentMethod()
+    {
+        $totalRevenue = Payment::where('status', 'completed')->sum('amount');
+
+        $revenueByMethod = Payment::where('status', 'completed')
+            ->select('payment_method', DB::raw('SUM(amount) as total_amount'))
+            ->groupBy('payment_method')
+            ->get()
+            ->map(function ($item) use ($totalRevenue) {
+                $percentage = $totalRevenue > 0 ? ($item->total_amount / $totalRevenue) * 100 : 0;
+
+                return [
+                    'payment_method' => $item->payment_method,
+                    'total_amount' => round($item->total_amount, 2),
+                    'percentage' => round($percentage, 2),
+                ];
+            });
+
+        return $revenueByMethod;
+    }
+
+    private function getOrderStatistics()
+    {
+        $currentMonth = Carbon::now()->startOfMonth();
+        $lastMonth = Carbon::now()->subMonth()->startOfMonth();
+        $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
+
+        // Current Month Statistics
+        $currentCompleted = Order::where('order_status', 'completed')
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        $currentInTransit = Order::whereIn('order_status', ['shipping', 'delivered'])
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        $currentCancelled = Order::where('order_status', 'cancelled')
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        $currentDelivered = Order::where('order_status', 'delivered')
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        // Last Month Statistics
+        $lastCompleted = Order::where('order_status', 'completed')
+            ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
+            ->count();
+
+        $lastInTransit = Order::whereIn('order_status', ['shipping', 'delivered'])
+            ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
+            ->count();
+
+        $lastCancelled = Order::where('order_status', 'cancelled')
+            ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
+            ->count();
+
+        $lastDelivered = Order::where('order_status', 'delivered')
+            ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
+            ->count();
+
+        return [
+            'total_completed' => Order::where('order_status', 'completed')->count(),
+            'total_in_transit' => Order::whereIn('order_status', ['shipping', 'delivered'])->count(),
+            'total_cancelled' => Order::where('order_status', 'cancelled')->count(),
+            'total_delivered' => Order::where('order_status', 'delivered')->count(),
+            'completed_improvement_percentage' => round($this->calculateImprovement($currentCompleted, $lastCompleted), 2),
+            'in_transit_improvement_percentage' => round($this->calculateImprovement($currentInTransit, $lastInTransit), 2),
+            'cancelled_improvement_percentage' => round($this->calculateImprovement($currentCancelled, $lastCancelled), 2),
+            'delivered_improvement_percentage' => round($this->calculateImprovement($currentDelivered, $lastDelivered), 2),
+        ];
+    }
+
+    private function getServiceStatistics()
+    {
+        $currentMonth = Carbon::now()->startOfMonth();
+        $lastMonth = Carbon::now()->subMonth()->startOfMonth();
+        $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
+
+        // Current Month Statistics
+        $currentCompleted = Booking::where('order_status', 'completed')
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        $currentInProgress = Booking::where('order_status', 'confirmed')
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        $currentCancelled = Booking::where('order_status', 'cancelled')
+            ->where('created_at', '>=', $currentMonth)
+            ->count();
+
+        // Last Month Statistics
+        $lastCompleted = Booking::where('order_status', 'completed')
+            ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
+            ->count();
+
+        $lastInProgress = Booking::where('order_status', 'confirmed')
+            ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
+            ->count();
+
+        $lastCancelled = Booking::where('order_status', 'cancelled')
+            ->whereBetween('created_at', [$lastMonth, $lastMonthEnd])
+            ->count();
+
+        return [
+            'total_published_services' => Service::where('status', true)->count(),
+            'total_completed_bookings' => Booking::where('order_status', 'completed')->count(),
+            'total_in_progress_bookings' => Booking::where('order_status', 'confirmed')->count(),
+            'total_cancelled_bookings' => Booking::where('order_status', 'cancelled')->count(),
+            'completed_improvement_percentage' => round($this->calculateImprovement($currentCompleted, $lastCompleted), 2),
+            'in_progress_improvement_percentage' => round($this->calculateImprovement($currentInProgress, $lastInProgress), 2),
+            'cancelled_improvement_percentage' => round($this->calculateImprovement($currentCancelled, $lastCancelled), 2),
+        ];
+    }
+
+    private function getTopServices()
+    {
+        $topServiceIds = DB::table('bookings')
+            ->select('service_id', DB::raw('COUNT(*) as bookings_count'))
+            ->groupBy('service_id')
+            ->orderByDesc('bookings_count')
+            ->take(4)
+            ->pluck('service_id');
+
+        return Service::whereIn('id', $topServiceIds)
+            ->withCount('bookings')
+            ->orderByDesc('bookings_count')
+            ->get();
+    }
+
+    private function getTopProducts()
+    {
+        $topProducts = DB::table('order_items')
+            ->select('product_id', DB::raw('SUM(order_items.quantity) as total_sold'))
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('orders.order_status', 'completed')
+            ->groupBy('product_id')
+            ->orderByDesc('total_sold')
+            ->take(4)
             ->get();
 
-        // حساب إجمالي المستخدمين في الفترة المحددة
-        $totalCustomersInPeriod = $query->count();
+        $productIds = $topProducts->pluck('product_id');
+        $products = Product::whereIn('id', $productIds)->get();
 
-        // حساب إجمالي المستخدمين في أكثر 5 دول
-        $totalCustomersInTopCountries = 0;
+        return $products->map(function ($product) use ($topProducts) {
+            $soldData = $topProducts->firstWhere('product_id', $product->id);
+            $product->total_sold = $soldData ? $soldData->total_sold : 0;
 
-        // تحويل البيانات
-        $countriesData = $topCountries->map(function ($country) use ($query, $totalCustomersInPeriod, &$totalCustomersInTopCountries) {
-            // عدد الذكور في هذه الدولة
-            $malesCount = (clone $query)->where('country_id', $country->id)
-                ->where('gender', 'male')
-                ->count();
-
-            // عدد الإناث في هذه الدولة
-            $femalesCount = (clone $query)->where('country_id', $country->id)
-                ->where('gender', 'female')
-                ->count();
-
-            // إجمالي المستخدمين في هذه الدولة
-            $totalCustomers = $malesCount + $femalesCount;
-
-            // إضافة إلى المجموع الكلي
-            $totalCustomersInTopCountries += $totalCustomers;
-
-            // حساب النسبة المئوية من إجمالي المستخدمين
-            $percentage = $totalCustomersInPeriod > 0
-                ? round(($totalCustomers / $totalCustomersInPeriod) * 100, 2)
-                : 0;
-
-            return [
-                'country_id' => $country->id,
-                'country_name' => $country->name,
-                'total_customers' => $totalCustomers,
-                'males_count' => $malesCount,
-                'females_count' => $femalesCount,
-                'percentage' => $percentage,
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => __('responses.top countries report'),
-            'period' => $period,
-            'total_customers_in_top_5_countries' => $totalCustomersInTopCountries,
-            'total_customers_in_period' => $totalCustomersInPeriod,
-            'countries' => $countriesData,
-        ]);
-    }
-
-    public function ageGroupsReport(Request $request)
-    {
-        $request->validate([
-            'period' => 'sometimes|nullable|in:last_7_days,last_month,all_time',
-        ]);
-
-        $period = $request->input('period', 'all_time');
-
-        $query = Customer::query()->whereNotNull('birthdate');
-
-        switch ($period) {
-            case 'last_7_days':
-                $query->where('created_at', '>=', Carbon::now()->subDays(7));
-                break;
-            case 'last_month':
-                $query->where('created_at', '>=', Carbon::now()->subMonth());
-                break;
-            case 'all_time':
-            default:
-                break;
-        }
-
-        $totalInPeriod = $query->count();
-
-        $now = Carbon::now();
-
-        $ageGroups = [
-            [
-                'key' => 'under_18',
-                'label' => __('responses.age_under_18'),
-                'range' => '< 18',
-                'birthdate_from' => null,
-                'birthdate_to' => $now->copy()->subYears(18),
-                'compare' => 'gt', // birthdate > to (أصغر من 18)
-            ],
-            [
-                'key' => '18_24',
-                'label' => __('responses.age_18_24'),
-                'range' => '18-24',
-                'birthdate_from' => $now->copy()->subYears(25),
-                'birthdate_to' => $now->copy()->subYears(18),
-                'compare' => 'between',
-            ],
-            [
-                'key' => '25_34',
-                'label' => __('responses.age_25_34'),
-                'range' => '25-34',
-                'birthdate_from' => $now->copy()->subYears(35),
-                'birthdate_to' => $now->copy()->subYears(25),
-                'compare' => 'between',
-            ],
-            [
-                'key' => '35_44',
-                'label' => __('responses.age_35_44'),
-                'range' => '35-44',
-                'birthdate_from' => $now->copy()->subYears(45),
-                'birthdate_to' => $now->copy()->subYears(35),
-                'compare' => 'between',
-            ],
-            [
-                'key' => '45_64',
-                'label' => __('responses.age_45_64'),
-                'range' => '45-64',
-                'birthdate_from' => $now->copy()->subYears(65),
-                'birthdate_to' => $now->copy()->subYears(45),
-                'compare' => 'between',
-            ],
-            [
-                'key' => '65_plus',
-                'label' => __('responses.age_65_plus'),
-                'range' => '65+',
-                'birthdate_from' => null,
-                'birthdate_to' => $now->copy()->subYears(65),
-                'compare' => 'lte', // birthdate <= to (65 وأكثر)
-            ],
-        ];
-
-        $result = [];
-
-        foreach ($ageGroups as $group) {
-            $q = (clone $query);
-
-            if ($group['compare'] === 'between') {
-                $q->where('birthdate', '>', $group['birthdate_from'])
-                    ->where('birthdate', '<=', $group['birthdate_to']);
-            } elseif ($group['compare'] === 'gt') {
-                $q->where('birthdate', '>', $group['birthdate_to']);
-            } else {
-                $q->where('birthdate', '<=', $group['birthdate_to']);
-            }
-
-            $malesCount = (clone $q)->where('gender', 'male')->count();
-            $femalesCount = (clone $q)->where('gender', 'female')->count();
-            $total = $malesCount + $femalesCount;
-
-            $percentage = $totalInPeriod > 0 ? round(($total / $totalInPeriod) * 100, 2) : 0;
-
-            $result[] = [
-                'key' => $group['key'],
-                'label' => $group['label'],
-                'range' => $group['range'],
-                'total' => $total,
-                'males_count' => $malesCount,
-                'females_count' => $femalesCount,
-                'percentage' => $percentage,
-            ];
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => __('responses.age groups report'),
-            'period' => $period,
-            'total_customers_in_period' => $totalInPeriod,
-            'age_groups' => $result,
-        ]);
-    }
-
-    public function identityReport()
-    {
-        $result = [];
-        $result['total_approved_identities_count_in_this_month'] = CustomerIdentity::where('status', 'approved')->whereMonth('created_at', now()->month)->count();
-        $result['total_approved_identities_count_last_month'] = CustomerIdentity::where('status', 'approved')->whereMonth('created_at', now()->subMonth()->month)->count();
-        $result['total_approved_identities_count'] = CustomerIdentity::where('status', 'approved')->count();
-        $result['total_identities_count'] = CustomerIdentity::count();
-        $result['average_identity_approval_rate'] = round($result['total_approved_identities_count'] / ($result['total_identities_count'] == 0 ? 1 : $result['total_identities_count']) * 100, 2);
-
-        return response()->json([
-            'success' => true,
-            'message' => __('responses.identity report'),
-            'result' => $result,
-        ]);
+            return $product;
+        })->sortByDesc('total_sold')->values();
     }
 }
