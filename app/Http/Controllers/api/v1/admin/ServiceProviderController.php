@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\api\v1\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ServiceProvider;
-use App\Models\Country;
 use App\Models\City;
+use App\Models\Country;
+use App\Models\ServiceProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -32,12 +32,12 @@ class ServiceProviderController extends Controller
             ->when($request->has('search'), function ($query) use ($request) {
                 $search = $request->search;
                 $query->where(function ($query) use ($search) {
-                    $query->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('store_name', 'like', '%' . $search . '%')
-                        ->orWhere('phone', 'like', '%' . $search . '%')
-                        ->orWhere('email', 'like', '%' . $search . '%')
-                        ->orWhere('full_address', 'like', '%' . $search . '%')
-                        ->orWhere('specialization', 'like', '%' . $search . '%');
+                    $query->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('store_name', 'like', '%'.$search.'%')
+                        ->orWhere('phone', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('full_address', 'like', '%'.$search.'%')
+                        ->orWhere('specialization', 'like', '%'.$search.'%');
                 });
             })->latest()->paginate();
         $report = [];
@@ -129,34 +129,34 @@ class ServiceProviderController extends Controller
             $serviceProvider->citiesOfWorking()->sync($request->cities_of_working);
             if ($request->hasFile('image')) {
                 $name = $request->image->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->image->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'image' => $filename,
                 ]);
             }
             if ($request->hasFile('id_file')) {
-                Storage::delete('public/media/' . $serviceProvider->id_file);
+                Storage::delete('public/media/'.$serviceProvider->id_file);
                 $name = $request->id_file->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->id_file->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'id_file' => $filename,
                 ]);
             }
             if ($request->hasFile('commercial_id_file')) {
-                Storage::delete('public/media/' . $serviceProvider->commercial_id_file);
+                Storage::delete('public/media/'.$serviceProvider->commercial_id_file);
                 $name = $request->commercial_id_file->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->commercial_id_file->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'commercial_id_file' => $filename,
                 ]);
             }
             if ($request->hasFile('service_practice_certificate_file')) {
-                Storage::delete('public/media/' . $serviceProvider->service_practice_certificate_file);
+                Storage::delete('public/media/'.$serviceProvider->service_practice_certificate_file);
                 $name = $request->service_practice_certificate_file->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->service_practice_certificate_file->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'service_practice_certificate_file' => $filename,
@@ -239,36 +239,36 @@ class ServiceProviderController extends Controller
                 $serviceProvider->citiesOfWorking()->sync([]);
             }
             if ($request->has('image')) {
-                Storage::delete('public/media/' . $serviceProvider->image);
+                Storage::delete('public/media/'.$serviceProvider->image);
                 $name = $request->image->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->image->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'image' => $filename,
                 ]);
             }
             if ($request->has('id_file')) {
-                Storage::delete('public/media/' . $serviceProvider->id_file);
+                Storage::delete('public/media/'.$serviceProvider->id_file);
                 $name = $request->id_file->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->id_file->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'id_file' => $filename,
                 ]);
             }
             if ($request->has('commercial_id_file')) {
-                Storage::delete('public/media/' . $serviceProvider->commercial_id_file);
+                Storage::delete('public/media/'.$serviceProvider->commercial_id_file);
                 $name = $request->commercial_id_file->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->commercial_id_file->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'commercial_id_file' => $filename,
                 ]);
             }
             if ($request->has('service_practice_certificate_file')) {
-                Storage::delete('public/media/' . $serviceProvider->service_practice_certificate_file);
+                Storage::delete('public/media/'.$serviceProvider->service_practice_certificate_file);
                 $name = $request->service_practice_certificate_file->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->service_practice_certificate_file->storeAs('public/media/', $filename);
                 $serviceProvider->update([
                     'service_practice_certificate_file' => $filename,

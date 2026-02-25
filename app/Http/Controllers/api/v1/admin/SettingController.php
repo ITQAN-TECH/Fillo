@@ -38,6 +38,7 @@ class SettingController extends Controller
         $request->validate([
             'phone_number' => 'sometimes|nullable|string',
             'email' => 'sometimes|nullable|email',
+            'shipping_fee' => 'sometimes|nullable|numeric|min:0',
         ]);
         $setting = Setting::firstOrFail();
         try {
@@ -45,6 +46,7 @@ class SettingController extends Controller
             $setting->update([
                 'phone_number' => $request->phone_number ?? $setting->phone_number,
                 'email' => $request->email ?? $setting->email,
+                'shipping_fee' => $request->shipping_fee ?? $setting->shipping_fee,
             ]);
             DB::commit();
 

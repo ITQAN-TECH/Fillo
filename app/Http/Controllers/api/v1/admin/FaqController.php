@@ -24,10 +24,10 @@ class FaqController extends Controller
         $faqs = Faq::when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
             $query->where(function ($query) use ($search) {
-                $query->where('ar_question', 'like', '%' . $search . '%')
-                    ->orWhere('en_question', 'like', '%' . $search . '%')
-                    ->orWhere('ar_answer', 'like', '%' . $search . '%')
-                    ->orWhere('en_answer', 'like', '%' . $search . '%');
+                $query->where('ar_question', 'like', '%'.$search.'%')
+                    ->orWhere('en_question', 'like', '%'.$search.'%')
+                    ->orWhere('ar_answer', 'like', '%'.$search.'%')
+                    ->orWhere('en_answer', 'like', '%'.$search.'%');
             });
         })->orderBy('order', 'asc')->paginate();
 
@@ -68,9 +68,9 @@ class FaqController extends Controller
             'en_question' => 'required|string',
             'ar_answer' => 'required|string',
             'en_answer' => 'required|string',
-            'order' => 'required|integer|min:1|max:' . Faq::max('order') + 1,
+            'order' => 'required|integer|min:1|max:'.Faq::max('order') + 1,
         ], [
-            'order.max' => __('responses.The order must be less than or equal to') . ' ' . Faq::max('order') + 1,
+            'order.max' => __('responses.The order must be less than or equal to').' '.Faq::max('order') + 1,
         ]);
         try {
             DB::beginTransaction();
@@ -122,9 +122,9 @@ class FaqController extends Controller
             'en_question' => 'sometimes|nullable|string',
             'ar_answer' => 'sometimes|nullable|string',
             'en_answer' => 'sometimes|nullable|string',
-            'order' => 'sometimes|nullable|integer|min:1|max:' . Faq::max('order'),
+            'order' => 'sometimes|nullable|integer|min:1|max:'.Faq::max('order'),
         ], [
-            'order.max' => __('responses.The order must be less than or equal to') . ' ' . Faq::max('order'),
+            'order.max' => __('responses.The order must be less than or equal to').' '.Faq::max('order'),
         ]);
         try {
             DB::beginTransaction();

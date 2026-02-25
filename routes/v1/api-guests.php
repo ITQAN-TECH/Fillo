@@ -1,14 +1,15 @@
 <?php
 
 use App\Http\Controllers\api\v1\guests\BannerController;
+use App\Http\Controllers\api\v1\guests\CategoryController;
 use App\Http\Controllers\api\v1\guests\CityController;
 use App\Http\Controllers\api\v1\guests\CountryController;
 use App\Http\Controllers\api\v1\guests\FaqController;
 use App\Http\Controllers\api\v1\guests\PageController;
-use App\Http\Controllers\api\v1\guests\CategoryController;
-use App\Http\Controllers\api\v1\guests\SubCategoryController;
+use App\Http\Controllers\api\v1\guests\ProductController;
 use App\Http\Controllers\api\v1\guests\ServiceController;
 use App\Http\Controllers\api\v1\guests\ServiceProviderController;
+use App\Http\Controllers\api\v1\guests\SubCategoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'v1/'], function () {
@@ -48,5 +49,9 @@ Route::group(['prefix' => 'v1/'], function () {
     // Service Providers Routes
     Route::get('service_providers', [ServiceProviderController::class, 'index']);
     Route::get('service_providers/{serviceProvider_id}', [ServiceProviderController::class, 'show']);
+
+    // Products Routes
+    Route::get('products', [ProductController::class, 'index']);
+    Route::get('products/{product_id}', [ProductController::class, 'show']);
 
 });

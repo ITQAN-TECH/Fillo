@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\api\v1\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Booking;
 use App\Jobs\SendNotificationJob;
+use App\Models\Booking;
+use App\Notifications\admins\BookingConfirmedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Notifications\admins\BookingConfirmedNotification;
 
 class BookingController extends Controller
 {
@@ -30,21 +30,21 @@ class BookingController extends Controller
             $search = $request->search;
             $query->where(function ($query) use ($search) {
                 $query->whereHas('service', function ($query) use ($search) {
-                    $query->where('ar_name', 'like', '%' . $search . '%')
-                        ->orWhere('en_name', 'like', '%' . $search . '%');
+                    $query->where('ar_name', 'like', '%'.$search.'%')
+                        ->orWhere('en_name', 'like', '%'.$search.'%');
                 })->orWhereHas('customer', function ($query) use ($search) {
-                    $query->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('email', 'like', '%' . $search . '%')
-                        ->orWhere('phone', 'like', '%' . $search . '%');
+                    $query->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('phone', 'like', '%'.$search.'%');
                 })->orWhereHas('coupon', function ($query) use ($search) {
-                    $query->where('code', 'like', '%' . $search . '%');
+                    $query->where('code', 'like', '%'.$search.'%');
                 })->orWhereHas('customerAddress', function ($query) use ($search) {
-                    $query->where('address_title', 'like', '%' . $search . '%')
-                        ->orWhere('full_address', 'like', '%' . $search . '%');
+                    $query->where('address_title', 'like', '%'.$search.'%')
+                        ->orWhere('full_address', 'like', '%'.$search.'%');
                 })->orWhereHas('payment', function ($query) use ($search) {
-                    $query->where('payment_method', 'like', '%' . $search . '%')
-                        ->orWhere('transaction_id', 'like', '%' . $search . '%')
-                        ->orWhere('amount', 'like', '%' . $search . '%');
+                    $query->where('payment_method', 'like', '%'.$search.'%')
+                        ->orWhere('transaction_id', 'like', '%'.$search.'%')
+                        ->orWhere('amount', 'like', '%'.$search.'%');
                 });
             });
         })->latest()->paginate();
@@ -100,7 +100,7 @@ class BookingController extends Controller
             $booking->update([
                 'order_status' => 'confirmed',
             ]);
-            $notification= new BookingConfirmedNotification($booking);
+            $notification = new BookingConfirmedNotification($booking);
             $fcmTitleKey = 'responses.Booking Confirmed';
             $fcmBodyKey = 'responses.Your booking has been confirmed';
             $fcmNotificationTypeData = [
@@ -109,6 +109,7 @@ class BookingController extends Controller
             ];
             dispatch(new SendNotificationJob(collect([$booking->customer]), $notification, $fcmTitleKey, $fcmBodyKey, true, [], $fcmNotificationTypeData));
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.booking confirmed successfully'),
@@ -116,6 +117,7 @@ class BookingController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.error happened'),
@@ -144,6 +146,7 @@ class BookingController extends Controller
                 'order_status' => 'completed',
             ]);
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.booking completed successfully'),
@@ -151,6 +154,7 @@ class BookingController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.error happened'),
@@ -179,6 +183,7 @@ class BookingController extends Controller
                 'order_status' => 'cancelled',
             ]);
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.booking cancelled successfully'),
@@ -186,6 +191,7 @@ class BookingController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.error happened'),

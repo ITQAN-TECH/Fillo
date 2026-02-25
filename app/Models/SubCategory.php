@@ -19,10 +19,11 @@ class SubCategory extends Model
         'status' => 'boolean',
     ];
 
-    protected static function booted() {
+    protected static function booted()
+    {
         static::deleted(function (self $model) {
             if ($model->image) {
-                Storage::delete('public/media/' . $model->image);
+                Storage::delete('public/media/'.$model->image);
             }
         });
     }

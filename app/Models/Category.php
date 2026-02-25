@@ -18,12 +18,13 @@ class Category extends Model
     protected $casts = [
         'status' => 'boolean',
     ];
+
     protected static function booted()
     {
 
         static::deleted(function (self $model) {
             if ($model->image) {
-                Storage::delete('public/media/' . $model->image);
+                Storage::delete('public/media/'.$model->image);
             }
         });
     }

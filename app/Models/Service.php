@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Facades\Currency;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class Service extends Model
 {
@@ -15,6 +16,7 @@ class Service extends Model
         'en_name',
         'ar_description',
         'en_description',
+        'duration_time_minutes',
         'service_provider_price',
         'sale_price',
         'profit_amount',
@@ -40,6 +42,8 @@ class Service extends Model
         'service_provider_price' => 'float',
         'sale_price' => 'float',
         'average_rate' => 'float',
+        'duration_time_minutes' => 'integer',
+        'is_favorite' => 'boolean',
     ];
 
     protected $with = [
@@ -47,12 +51,14 @@ class Service extends Model
         'subCategory',
         'serviceProvider',
         'images',
+        'features',
     ];
 
     protected $appends = [
         'converted_service_provider_price',
         'converted_sale_price',
-        'converted_profit_amount'
+        'converted_profit_amount',
+        'is_favorite',
     ];
 
     protected static function booted()
@@ -83,6 +89,11 @@ class Service extends Model
         return round($this->profit_amount * $rate, 2);
     }
 
+    public function getIsFavoriteAttribute()
+    {
+        return Favorite::where('customer_id', Auth::guard('customers')->id())->where('service_id', $this->id)->exists();
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -106,5 +117,10 @@ class Service extends Model
     public function rates()
     {
         return $this->morphMany(Rate::class, 'rateable');
+    }
+
+    public function features()
+    {
+        return $this->morphMany(Feature::class, 'featureable');
     }
 }

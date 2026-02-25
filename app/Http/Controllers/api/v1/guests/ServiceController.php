@@ -13,16 +13,22 @@ class ServiceController extends Controller
         $request->validate([
             'search' => 'sometimes|nullable|string',
             'is_featured' => 'sometimes|nullable|boolean',
+            'category_id' => 'sometimes|nullable|exists:categories,id',
+            'sub_category_id' => 'sometimes|nullable|exists:sub_categories,id',
             'per_page' => 'sometimes|nullable|integer|min:1|max:100',
         ]);
         $services = Service::when($request->has('is_featured'), function ($query) use ($request) {
             $query->where('is_featured', $request->is_featured);
+        })->when($request->has('category_id'), function ($query) use ($request) {
+            $query->where('category_id', $request->category_id);
+        })->when($request->has('sub_category_id'), function ($query) use ($request) {
+            $query->where('sub_category_id', $request->sub_category_id);
         })->when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
-            $query->where('ar_name', 'like', '%' . $search . '%')
-                ->orWhere('en_name', 'like', '%' . $search . '%')
-                ->orWhere('ar_description', 'like', '%' . $search . '%')
-                ->orWhere('en_description', 'like', '%' . $search . '%');
+            $query->where('ar_name', 'like', '%'.$search.'%')
+                ->orWhere('en_name', 'like', '%'.$search.'%')
+                ->orWhere('ar_description', 'like', '%'.$search.'%')
+                ->orWhere('en_description', 'like', '%'.$search.'%');
         })->where('status', true)->latest()->paginate($request->per_page ?? 15);
 
         return response()->json([
@@ -53,6 +59,7 @@ class ServiceController extends Controller
             '4' => ['count' => $starCounts[4], 'percentage' => $starPercentages[4]],
             '5' => ['count' => $starCounts[5], 'percentage' => $starPercentages[5]],
         ];
+
         return response()->json([
             'success' => true,
             'message' => __('responses.service'),

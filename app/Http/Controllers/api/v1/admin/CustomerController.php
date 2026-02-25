@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class CustomerController extends Controller
 {
@@ -83,6 +81,7 @@ class CustomerController extends Controller
         }
         $customer = Customer::with('addresses')->findOrFail($customer_id);
         $rates = $customer->rates()->with('rateable')->latest()->paginate();
+
         return response()->json([
             'success' => true,
             'message' => __('responses.customer'),

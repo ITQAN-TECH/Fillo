@@ -2,11 +2,9 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -26,6 +24,7 @@ class Customer extends Authenticatable
         'image',
         'otp',
         'currency',
+        'national_address_short_number',
     ];
 
     protected $hidden = [
@@ -38,6 +37,11 @@ class Customer extends Authenticatable
     ];
 
     protected $with = [];
+
+    protected $withCount = [
+        'favorites',
+        'bookings',
+    ];
 
     protected function casts()
     {
@@ -63,7 +67,7 @@ class Customer extends Authenticatable
 
         static::deleted(function (self $model) {
             if ($model->image) {
-                Storage::delete('public/media/' . $model->image);
+                Storage::delete('public/media/'.$model->image);
             }
         });
     }
@@ -97,4 +101,30 @@ class Customer extends Authenticatable
     {
         return $this->hasMany(Booking::class);
     }
+
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function favoriteServices()
+    {
+        return $this->hasMany(Favorite::class)->whereNotNull('service_id')->whereNull('product_id');
+    }
+
+    public function favoriteProducts()
+    {
+        return $this->hasMany(Favorite::class)->whereNotNull('product_id')->whereNull('service_id');
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function carts()
+    {
+        return $this->hasMany(Cart::class);
+    }
+
 }

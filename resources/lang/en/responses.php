@@ -438,7 +438,7 @@ return [
     'you cannot change service status' => 'You cannot change service status',
     'sub category does not belong to category' => 'Sub category does not belong to category',
     'you cannot delete the only image of the service' => 'You cannot delete the only image of the service',
-    
+
     // Rate
     'rate deleted successfully' => 'Rate deleted successfully',
     'you cannot delete rate' => 'You cannot delete rate',
@@ -484,4 +484,66 @@ return [
     'booking cancelled successfully' => 'Booking cancelled successfully',
     'booking' => 'booking',
     'all bookings' => 'All bookings',
+
+    // Products
+    'all products' => 'All products',
+    'product' => 'Product',
+    'product created successfully' => 'Product created successfully',
+    'product updated successfully' => 'Product updated successfully',
+    'product deleted successfully' => 'Product deleted successfully',
+    'you cannot delete product' => 'You cannot delete product',
+    'product status changed successfully' => 'Product status changed successfully',
+    'variant added successfully' => 'Variant added successfully',
+    'variant updated successfully' => 'Variant updated successfully',
+    'variant deleted successfully' => 'Variant deleted successfully',
+    'you cannot delete variant' => 'You cannot delete variant',
+    'variant already exists' => 'Variant already exists',
+    'you cannot delete the only image of the product' => 'You cannot delete the only image of the product',
+
+    // Colors
+    'all colors' => 'All colors',
+    'color' => 'Color',
+    'color created successfully' => 'Color created successfully',
+    'color updated successfully' => 'Color updated successfully',
+    'color deleted successfully' => 'Color deleted successfully',
+    'you cannot delete color' => 'You cannot delete color',
+    'color status changed successfully' => 'Color status changed successfully',
+    'cannot delete color with products' => 'Cannot delete color with products',
+
+    // Sizes
+    'all sizes' => 'All sizes',
+    'size' => 'Size',
+    'size created successfully' => 'Size created successfully',
+    'size updated successfully' => 'Size updated successfully',
+    'size deleted successfully' => 'Size deleted successfully',
+    'you cannot delete size' => 'You cannot delete size',
+    'size status changed successfully' => 'Size status changed successfully',
+    'cannot delete size with products' => 'Cannot delete size with products',   
+
+    // Favorites
+    'Favorites for user' => 'Favorites for user',
+    'You cannot favorite your own product or service' => 'You cannot favorite your own product or service',
+    'This Product is already in your Favorites' => 'This Product is already in your Favorites',
+    'Product added to Favorite successfully!.' => 'Product added to Favorite successfully!.',
+    'Product removed from Favorites successfully!.' => 'Product removed from Favorites successfully!.',
+    'This Service is already in your Favorites' => 'This Service is already in your Favorites',
+    'Service added to Favorite successfully!.' => 'Service added to Favorite successfully!.',
+    'Service removed from Favorites successfully!.' => 'Service removed from Favorites successfully!.',
+    'Favorites deleted successfully' => 'Favorites deleted successfully',
+
+    // Cart
+    'Cart items' => 'Cart items',
+    'Cart total price' => 'Cart total price',
+    'Cart discount percentage' => 'Cart discount percentage',
+    'Cart discount amount' => 'Cart discount amount',
+    'Cart coupon code' => 'Cart coupon code',
+    'Cart coupon id' => 'Cart coupon id',
+    'Cart coupon code' => 'Cart coupon code',
+    'Product variant quantity is not available' => 'Product variant quantity is not available',
+    'Product variant is not available' => 'Product variant is not available',
+    'Product is not available' => 'Product is not available',
+    'Product added to Cart successfully!.' => 'Product added to Cart successfully!.',
+    'Product removed from Cart successfully!.' => 'Product removed from Cart successfully!.',
+    'Cart emptied successfully!.' => 'Cart emptied successfully!.',
+    'Product quantity increased successfully!.' => 'Product quantity increased successfully!.',
 ];

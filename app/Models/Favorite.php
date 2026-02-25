@@ -7,22 +7,29 @@ use Illuminate\Database\Eloquent\Model;
 class Favorite extends Model
 {
     protected $fillable = [
-        'follower_id',
-        'following_id',
+        'customer_id',
+        'service_id',
+        'product_id',
     ];
 
     protected $casts = [
-        'follower_id' => 'integer',
-        'following_id' => 'integer',
+        'customer_id' => 'integer',
+        'service_id' => 'integer',
+        'product_id' => 'integer',
     ];
 
-    public function follower()
+    public function customer()
     {
-        return $this->belongsTo(Customer::class, 'follower_id');
+        return $this->belongsTo(Customer::class, 'customer_id');
     }
 
-    public function following()
+    public function service()
     {
-        return $this->belongsTo(Customer::class, 'following_id');
+        return $this->belongsTo(Service::class, 'service_id');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
     }
 }

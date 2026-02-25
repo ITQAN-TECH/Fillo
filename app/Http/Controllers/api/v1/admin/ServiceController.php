@@ -4,11 +4,10 @@ namespace App\Http\Controllers\api\v1\admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
-use App\Models\Service;
-use App\Models\SubCategory;
-use App\Models\ServiceProvider;
 use App\Models\Image;
-use App\Models\Rate;
+use App\Models\Service;
+use App\Models\ServiceProvider;
+use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,10 +30,10 @@ class ServiceController extends Controller
         $services = Service::when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
             $query->where(function ($query) use ($search) {
-                $query->where('ar_name', 'like', '%' . $search . '%')
-                    ->orWhere('en_name', 'like', '%' . $search . '%')
-                    ->orWhere('ar_description', 'like', '%' . $search . '%')
-                    ->orWhere('en_description', 'like', '%' . $search . '%');
+                $query->where('ar_name', 'like', '%'.$search.'%')
+                    ->orWhere('en_name', 'like', '%'.$search.'%')
+                    ->orWhere('ar_description', 'like', '%'.$search.'%')
+                    ->orWhere('en_description', 'like', '%'.$search.'%');
             });
         })->when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
             $query->where('status', $request->status == 'active' ? true : false);
@@ -63,6 +62,7 @@ class ServiceController extends Controller
         }
         $service = Service::findOrFail($service_id);
         $rates = $service->rates()->with('customer')->latest()->paginate();
+
         return response()->json([
             'success' => true,
             'message' => __('responses.service'),
@@ -86,13 +86,20 @@ class ServiceController extends Controller
             'en_description' => 'required|string',
             'service_provider_price' => 'required|numeric|gt:0',
             'sale_price' => 'required|numeric|gte:service_provider_price',
+            'duration_time_minutes' => 'sometimes|nullable|integer|min:0',
             'category_id' => 'required|exists:categories,id',
             'sub_category_id' => 'required|exists:sub_categories,id',
             'service_provider_id' => 'required|exists:service_providers,id',
             'images' => 'required|array',
             'images.*' => 'required|image|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
+            'features' => 'sometimes|nullable|array',
+            'features.*' => 'sometimes|nullable|array',
+            'features.*.ar_title' => 'sometimes|nullable|string',
+            'features.*.en_title' => 'sometimes|nullable|string',
+            'features.*.ar_description' => 'sometimes|nullable|string',
+            'features.*.en_description' => 'sometimes|nullable|string',
         ]);
-        $category = Category::findOrFail($request->category_id);
+        $category = Category::where('type', 'service')->findOrFail($request->category_id);
         $subCategory = SubCategory::findOrFail($request->sub_category_id);
         if ($subCategory->category_id != $category->id) {
             return response()->json([
@@ -112,6 +119,7 @@ class ServiceController extends Controller
                 'service_provider_price' => $request->service_provider_price,
                 'sale_price' => $request->sale_price,
                 'profit_amount' => $request->sale_price - $request->service_provider_price,
+                'duration_time_minutes' => $request->duration_time_minutes,
                 'category_id' => $request->category_id,
                 'sub_category_id' => $request->sub_category_id,
                 'service_provider_id' => $request->service_provider_id,
@@ -120,7 +128,7 @@ class ServiceController extends Controller
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $image) {
                     $name = $image->hashName();
-                    $filename = time() . '_' . uniqid() . '_' . $name;
+                    $filename = time().'_'.uniqid().'_'.$name;
                     $image->storeAs('public/media/', $filename);
                     $service->images()->create([
                         'image' => $filename,
@@ -128,12 +136,22 @@ class ServiceController extends Controller
                 }
             }
 
+            if ($request->has('features') && $request->features != null) {
+                foreach ($request->features as $feature) {
+                    $service->features()->create([
+                        'ar_title' => $feature['ar_title'],
+                        'en_title' => $feature['en_title'],
+                        'ar_description' => $feature['ar_description'],
+                        'en_description' => $feature['en_description'],
+                    ]);
+                }
+            }
             DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => __('responses.service created successfully'),
-                'service' => $service->load('images', 'category', 'subCategory', 'serviceProvider'),
+                'service' => $service->load('images', 'category', 'subCategory', 'serviceProvider', 'features'),
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -161,14 +179,21 @@ class ServiceController extends Controller
             'en_description' => 'sometimes|nullable|string',
             'service_provider_price' => 'sometimes|nullable|numeric|gt:0',
             'sale_price' => 'sometimes|nullable|numeric|gte:service_provider_price',
+            'duration_time_minutes' => 'sometimes|nullable|integer|min:0',
             'category_id' => 'sometimes|nullable|exists:categories,id',
             'sub_category_id' => 'sometimes|nullable|exists:sub_categories,id',
             'service_provider_id' => 'sometimes|nullable|exists:service_providers,id',
             'images' => 'sometimes|nullable|array',
             'images.*' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
+            'features' => 'sometimes|nullable|array',
+            'features.*' => 'sometimes|nullable|array',
+            'features.*.ar_title' => 'sometimes|nullable|string',
+            'features.*.en_title' => 'sometimes|nullable|string',
+            'features.*.ar_description' => 'sometimes|nullable|string',
+            'features.*.en_description' => 'sometimes|nullable|string',
         ]);
         $service = Service::findOrFail($service_id);
-        $category = Category::findOrFail($request->category_id ?? $service->category_id);
+        $category = Category::where('type', 'service')->findOrFail($request->category_id ?? $service->category_id);
         $subCategory = SubCategory::findOrFail($request->sub_category_id ?? $service->sub_category_id);
         if ($subCategory->category_id != $category->id) {
             return response()->json([
@@ -186,18 +211,32 @@ class ServiceController extends Controller
                 'service_provider_price' => $request->service_provider_price ?? $service->service_provider_price,
                 'sale_price' => $request->sale_price ?? $service->sale_price,
                 'profit_amount' => $request->sale_price ?? $service->sale_price - $request->service_provider_price ?? $service->profit_amount,
+                'duration_time_minutes' => $request->duration_time_minutes ?? $service->duration_time_minutes,
                 'category_id' => $request->category_id ?? $service->category_id,
                 'sub_category_id' => $request->sub_category_id ?? $service->sub_category_id,
                 'service_provider_id' => $request->service_provider_id ?? $service->service_provider_id,
             ]);
+            if ($request->has('features') && $request->features != null) {
+                foreach ($service->features as $feature) {
+                    $feature->delete();
+                }
+                foreach ($request->features as $feature) {
+                    $service->features()->create([
+                        'ar_title' => $feature['ar_title'],
+                        'en_title' => $feature['en_title'],
+                        'ar_description' => $feature['ar_description'],
+                        'en_description' => $feature['en_description'],
+                    ]);
+                }
+            }
             if ($request->hasFile('images') && $request->images != null) {
                 foreach ($service->images as $image) {
-                    Storage::delete('public/media/' . $image->image);
+                    Storage::delete('public/media/'.$image->image);
                     $image->delete();
                 }
                 foreach ($request->file('images') as $image) {
                     $name = $image->hashName();
-                    $filename = time() . '_' . uniqid() . '_' . $name;
+                    $filename = time().'_'.uniqid().'_'.$name;
                     $image->storeAs('public/media/', $filename);
                     $service->images()->create([
                         'image' => $filename,
@@ -234,7 +273,7 @@ class ServiceController extends Controller
         try {
             DB::beginTransaction();
             foreach ($service->images as $image) {
-                Storage::delete('public/media/' . $image->image);
+                Storage::delete('public/media/'.$image->image);
                 $image->delete();
             }
             $service->delete();
@@ -273,6 +312,7 @@ class ServiceController extends Controller
                 'is_featured' => $request->is_featured,
             ]);
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.done'),
@@ -280,6 +320,7 @@ class ServiceController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.error happened'),
@@ -305,9 +346,10 @@ class ServiceController extends Controller
         }
         try {
             DB::beginTransaction();
-            Storage::delete('public/media/' . $image->image);
+            Storage::delete('public/media/'.$image->image);
             $image->delete();
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.image deleted successfully'),
@@ -315,6 +357,7 @@ class ServiceController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.you cannot delete image'),

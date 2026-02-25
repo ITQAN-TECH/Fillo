@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('code')->unique();
             $table->float('discount_percentage')->default(0);
             $table->date('expiry_date')->nullable();
-            $table->enum('type', ['product', 'service','both_products_and_services']);
+            $table->enum('type', ['product', 'service', 'both_products_and_services']);
             $table->boolean('status')->default(true);
             $table->timestamps();
         });

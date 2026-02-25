@@ -52,6 +52,7 @@ class CouponController extends Controller
             ], 403);
         }
         $coupon = Coupon::findOrFail($coupon_id);
+
         return response()->json([
             'success' => true,
             'message' => __('responses.coupon'),
@@ -107,7 +108,7 @@ class CouponController extends Controller
             ], 403);
         }
         $request->validate([
-            'code' => 'sometimes|nullable|string|max:255|min:3|unique:coupons,code,' . $coupon_id,
+            'code' => 'sometimes|nullable|string|max:255|min:3|unique:coupons,code,'.$coupon_id,
             'discount_percentage' => 'sometimes|nullable|numeric|min:1|max:99',
             'expiry_date' => 'sometimes|nullable|date_format:Y-m-d',
             'type' => 'sometimes|nullable|in:product,service,both_products_and_services',

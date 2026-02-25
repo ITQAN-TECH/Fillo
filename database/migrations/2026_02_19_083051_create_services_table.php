@@ -23,6 +23,7 @@ return new class extends Migration
             $table->float('service_provider_price');
             $table->float('sale_price');
             $table->float('profit_amount')->default(0);
+            $table->integer('duration_time_minutes')->nullable();
             $table->decimal('average_rate', 2, 1)->default(5.0);
             $table->boolean('is_featured')->default(false);
             $table->boolean('status')->default(true);

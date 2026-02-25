@@ -22,7 +22,7 @@ class Country extends Model
     {
         static::deleted(function (self $model) {
             if ($model->flag) {
-                Storage::delete('public/media/' . $model->flag);
+                Storage::delete('public/media/'.$model->flag);
             }
         });
     }

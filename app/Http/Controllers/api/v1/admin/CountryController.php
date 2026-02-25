@@ -81,7 +81,7 @@ class CountryController extends Controller
             ]);
             if ($request->hasFile('flag')) {
                 $name = $request->flag->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->flag->storeAs('public/media/', $filename);
                 $country->update([
                     'flag' => $filename,
@@ -125,9 +125,9 @@ class CountryController extends Controller
                 'en_name' => $request->en_name ?? $country->en_name,
             ]);
             if ($request->hasFile('flag')) {
-                Storage::delete('public/media/' . $country->flag);
+                Storage::delete('public/media/'.$country->flag);
                 $name = $request->flag->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->flag->storeAs('public/media/', $filename);
                 $country->update([
                     'flag' => $filename,

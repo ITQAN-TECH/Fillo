@@ -7,7 +7,6 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Http\Resources\CategoryResource;
 use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
@@ -29,8 +28,8 @@ class CategoryController extends Controller
         })->when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
             $query->where(function ($query) use ($search) {
-                $query->where('ar_title', 'like', '%' . $search . '%')
-                    ->orWhere('en_title', 'like', '%' . $search . '%');
+                $query->where('ar_title', 'like', '%'.$search.'%')
+                    ->orWhere('en_title', 'like', '%'.$search.'%');
             });
         })->with('subCategories')->latest()->paginate();
         $report = [];
@@ -66,8 +65,8 @@ class CategoryController extends Controller
         })->when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
             $query->where(function ($query) use ($search) {
-                $query->where('ar_title', 'like', '%' . $search . '%')
-                    ->orWhere('en_title', 'like', '%' . $search . '%');
+                $query->where('ar_title', 'like', '%'.$search.'%')
+                    ->orWhere('en_title', 'like', '%'.$search.'%');
             });
         })->with('subCategories')->latest()->limit(10)->get();
 
@@ -120,7 +119,7 @@ class CategoryController extends Controller
             ]);
             if ($request->hasFile('image')) {
                 $name = $request->image->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->image->storeAs('public/media/', $filename);
                 $category->update([
                     'image' => $filename,
@@ -167,10 +166,10 @@ class CategoryController extends Controller
             ]);
             if ($request->hasFile('image') && $request->image != null) {
                 if ($category->image) {
-                    Storage::delete('public/media/' . $category->image);
+                    Storage::delete('public/media/'.$category->image);
                 }
                 $name = $request->image->hashName();
-                $filename = time() . '_' . uniqid() . '_' . $name;
+                $filename = time().'_'.uniqid().'_'.$name;
                 $request->image->storeAs('public/media/', $filename);
                 $category->update([
                     'image' => $filename,

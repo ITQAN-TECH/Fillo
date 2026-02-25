@@ -3,25 +3,28 @@
 use App\Http\Controllers\api\v1\admin\AdminController;
 use App\Http\Controllers\api\v1\admin\AuthController;
 use App\Http\Controllers\api\v1\admin\BannerController;
-use App\Http\Controllers\api\v1\admin\CityController;
-use App\Http\Controllers\api\v1\admin\CountryController;
+use App\Http\Controllers\api\v1\admin\BookingController;
 use App\Http\Controllers\api\v1\admin\CategoryController;
+use App\Http\Controllers\api\v1\admin\CityController;
+use App\Http\Controllers\api\v1\admin\ColorController;
+use App\Http\Controllers\api\v1\admin\CountryController;
+use App\Http\Controllers\api\v1\admin\CouponController;
 use App\Http\Controllers\api\v1\admin\CustomerController;
-use App\Http\Controllers\api\v1\admin\SubCategoryController;
 use App\Http\Controllers\api\v1\admin\FaqController;
 use App\Http\Controllers\api\v1\admin\ForgetPasswordController;
 use App\Http\Controllers\api\v1\admin\NotificationFromAdminController;
 use App\Http\Controllers\api\v1\admin\PageController;
+use App\Http\Controllers\api\v1\admin\ProductController;
 use App\Http\Controllers\api\v1\admin\ProfileController;
+use App\Http\Controllers\api\v1\admin\RateController;
 use App\Http\Controllers\api\v1\admin\ReportController;
 use App\Http\Controllers\api\v1\admin\RoleController;
-use App\Http\Controllers\api\v1\admin\SettingController;
-use App\Http\Controllers\api\v1\admin\SupportChatController;
-use App\Http\Controllers\api\v1\admin\ServiceProviderController;
-use App\Http\Controllers\api\v1\admin\BookingController;
 use App\Http\Controllers\api\v1\admin\ServiceController;
-use App\Http\Controllers\api\v1\admin\RateController;
-use App\Http\Controllers\api\v1\admin\CouponController;
+use App\Http\Controllers\api\v1\admin\ServiceProviderController;
+use App\Http\Controllers\api\v1\admin\SettingController;
+use App\Http\Controllers\api\v1\admin\SizeController;
+use App\Http\Controllers\api\v1\admin\SubCategoryController;
+use App\Http\Controllers\api\v1\admin\SupportChatController;
 use App\Http\Middleware\CheckForAdminStatus;
 use Illuminate\Support\Facades\Route;
 
@@ -121,6 +124,34 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
 
     // Rate Routes
     Route::delete('rates/{rate_id}', [RateController::class, 'destroy']);
+
+    // Product Routes
+    Route::get('products', [ProductController::class, 'index']);
+    Route::get('products/{product_id}', [ProductController::class, 'show']);
+    Route::post('products', [ProductController::class, 'store']);
+    Route::post('products/{product_id}', [ProductController::class, 'update']);
+    Route::delete('products/{product_id}', [ProductController::class, 'destroy']);
+    Route::post('products/change_status/{product_id}', [ProductController::class, 'changeStatus']);
+    Route::delete('products/delete_image/{image_id}', [ProductController::class, 'deleteImage']);
+    Route::post('products/{product_id}/variants', [ProductController::class, 'addVariant']);
+    Route::post('products/variants/{variant_id}', [ProductController::class, 'updateVariant']);
+    Route::delete('products/variants/{variant_id}', [ProductController::class, 'deleteVariant']);
+
+    // Color Routes
+    Route::get('colors', [ColorController::class, 'index']);
+    Route::get('colors/{color_id}', [ColorController::class, 'show']);
+    Route::post('colors', [ColorController::class, 'store']);
+    Route::post('colors/{color_id}', [ColorController::class, 'update']);
+    Route::delete('colors/{color_id}', [ColorController::class, 'destroy']);
+    Route::post('colors/change_status/{color_id}', [ColorController::class, 'changeStatus']);
+
+    // Size Routes
+    Route::get('sizes', [SizeController::class, 'index']);
+    Route::get('sizes/{size_id}', [SizeController::class, 'show']);
+    Route::post('sizes', [SizeController::class, 'store']);
+    Route::post('sizes/{size_id}', [SizeController::class, 'update']);
+    Route::delete('sizes/{size_id}', [SizeController::class, 'destroy']);
+    Route::post('sizes/change_status/{size_id}', [SizeController::class, 'changeStatus']);
 
     // Faq Routes
     Route::get('faqs', [FaqController::class, 'index']);

@@ -1,14 +1,15 @@
 <?php
 
 use App\Http\Controllers\api\v1\customers\AuthController;
+use App\Http\Controllers\api\v1\customers\CustomerAddressController;
 use App\Http\Controllers\api\v1\customers\FavoriteController;
 use App\Http\Controllers\api\v1\customers\FCMToken\FCMTokenController;
 use App\Http\Controllers\api\v1\customers\ForgetPasswordController;
 use App\Http\Controllers\api\v1\customers\notifications\database\DatabaseNotificationController;
 use App\Http\Controllers\api\v1\customers\ProfileController;
-use App\Http\Controllers\api\v1\customers\SupportChatController;
-use App\Http\Controllers\api\v1\customers\CustomerAddressController;
 use App\Http\Controllers\api\v1\customers\ServiceController;
+use App\Http\Controllers\api\v1\customers\SupportChatController;
+use App\Http\Controllers\api\v1\customers\CartController;
 use App\Http\Middleware\CheckForCustomerStatus;
 use Illuminate\Support\Facades\Route;
 
@@ -54,8 +55,17 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
     // Favorite Routes
     Route::get('favorites', [FavoriteController::class, 'index']);
     Route::post('favorites', [FavoriteController::class, 'store']);
-    Route::delete('favorites/{following_id}', [FavoriteController::class, 'destroy']);
+    Route::delete('favorites/{service_id}/service', [FavoriteController::class, 'destroyService']);
+    Route::delete('favorites/{product_id}/product', [FavoriteController::class, 'destroyProduct']);
     Route::delete('empty_favorites', [FavoriteController::class, 'empty']);
+
+    // Cart Routes
+    Route::get('cart', [CartController::class, 'show']);
+    Route::post('cart', [CartController::class, 'add']);
+    Route::post('cart/{cart_id}/plus', [CartController::class, 'plus']);
+    Route::post('cart/{cart_id}/minus', [CartController::class, 'minus']);
+    Route::delete('cart/{cart_id}', [CartController::class, 'destroy']);
+    Route::delete('empty_cart', [CartController::class, 'destroyAll']);
 
     // Service Booking Routes
     Route::post('services/calculate_price', [ServiceController::class, 'calculatePrice']);

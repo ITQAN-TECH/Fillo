@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\api\v1\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Category;
 use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -74,6 +73,7 @@ class SubCategoryController extends Controller
             'sub_categories' => $subCategories,
         ]);
     }
+
     public function show($subCategory_id)
     {
         if (! Auth::guard('admins')->user()->hasPermission('show-categories')) {

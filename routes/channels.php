@@ -16,5 +16,6 @@ Broadcast::channel('support.message.channel', function ($user) {
     if ($user && $user->hasPermission('show-support_chats')) {
         return true;
     }
+
     return false;
 }, ['guards' => ['admins']]);

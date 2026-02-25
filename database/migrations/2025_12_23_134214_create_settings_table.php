@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('phone_number')->nullable();
             $table->string('email')->nullable();
+            $table->float('shipping_fee')->default(20);
             $table->timestamps();
         });
     }

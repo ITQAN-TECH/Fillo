@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('otp')->nullable();
             $table->boolean('receive_notifications')->default(true);
             $table->string('image')->nullable();
+            $table->string('national_address_short_number')->nullable();
             $table->string('currency')->default('SAR');
             $table->timestamps();
         });

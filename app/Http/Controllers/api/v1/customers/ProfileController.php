@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\api\v1\customers;
 
 use App\Http\Controllers\Controller;
-use App\Models\City;
-use App\Models\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +18,7 @@ class ProfileController extends Controller
             'name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'image' => ['sometimes', 'nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg,webp', 'max:7168'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255', Rule::unique('customers', 'email')->ignore(Auth::guard('customers')->id())],
+            'national_address_short_number' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
         $customer = Auth::guard('customers')->user();
         try {
@@ -27,6 +26,7 @@ class ProfileController extends Controller
             $customer->update([
                 'name' => $request->name ?? $customer->name,
                 'email' => $request->email ?? $customer->email,
+                'national_address_short_number' => $request->national_address_short_number ?? $customer->national_address_short_number,
             ]);
             if ($request->hasFile('image')) {
                 if ($customer->image) {

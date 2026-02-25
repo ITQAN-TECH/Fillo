@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Rate;
 use App\Models\Permission;
 use Illuminate\Database\Seeder;
 

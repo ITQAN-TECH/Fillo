@@ -44,16 +44,16 @@ class ServiceProvider extends Model
     {
         static::deleted(function (self $model) {
             if ($model->image) {
-                Storage::delete('public/media/' . $model->image);
+                Storage::delete('public/media/'.$model->image);
             }
             if ($model->id_file) {
-                Storage::delete('public/media/' . $model->id_file);
+                Storage::delete('public/media/'.$model->id_file);
             }
             if ($model->commercial_id_file) {
-                Storage::delete('public/media/' . $model->commercial_id_file);
+                Storage::delete('public/media/'.$model->commercial_id_file);
             }
             if ($model->service_practice_certificate_file) {
-                Storage::delete('public/media/' . $model->service_practice_certificate_file);
+                Storage::delete('public/media/'.$model->service_practice_certificate_file);
             }
         });
 

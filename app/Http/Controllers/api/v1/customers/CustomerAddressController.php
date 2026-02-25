@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\api\v1\customers;
 
 use App\Http\Controllers\Controller;
-use App\Models\CustomerAddress;
-use App\Models\Country;
 use App\Models\City;
+use App\Models\Country;
+use App\Models\CustomerAddress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +16,7 @@ class CustomerAddressController extends Controller
     {
         $customer = Auth::guard('customers')->user();
         $addresses = $customer->addresses()->latest()->get();
+
         return response()->json([
             'success' => true,
             'message' => __('responses.all addresses'),
@@ -26,6 +27,7 @@ class CustomerAddressController extends Controller
     public function show($address_id)
     {
         $address = CustomerAddress::findOrFail($address_id);
+
         return response()->json([
             'success' => true,
             'message' => __('responses.address'),
@@ -72,6 +74,7 @@ class CustomerAddressController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.error happened'),
@@ -111,6 +114,7 @@ class CustomerAddressController extends Controller
                 $customer->addresses()->where('id', '!=', $address->id)->where('is_default', true)->update(['is_default' => false]);
             }
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.address updated successfully'),
@@ -118,6 +122,7 @@ class CustomerAddressController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.error happened'),
@@ -136,6 +141,7 @@ class CustomerAddressController extends Controller
             }
             $address->delete();
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.address deleted successfully'),
@@ -143,6 +149,7 @@ class CustomerAddressController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.you cannot delete address'),
@@ -159,12 +166,14 @@ class CustomerAddressController extends Controller
             $address->update(['is_default' => true]);
             $customer->addresses()->where('id', '!=', $address->id)->where('is_default', true)->update(['is_default' => false]);
             DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => __('responses.address set as default successfully'),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => __('responses.error happened'),

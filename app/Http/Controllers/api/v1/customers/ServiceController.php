@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\api\v1\customers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\Coupon;
 use App\Models\CustomerAddress;
-use App\Models\Booking;
-use App\Models\Rate;
 use App\Models\Payment;
+use App\Models\Rate;
 use App\Models\Service;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -24,7 +24,7 @@ class ServiceController extends Controller
         ]);
         $service = Service::findOrFail($request->service_id);
 
-        if (!$service->status) {
+        if (! $service->status) {
             return response()->json([
                 'status' => false,
                 'message' => __('responses.Service is not available'),
@@ -43,10 +43,11 @@ class ServiceController extends Controller
         if ($request->coupon_code) {
             $coupon = Coupon::where('code', $request->coupon_code)
                 ->where('status', true)
+                ->whereIn('type', ['service', 'both_products_and_services'])
                 ->where('expiry_date', '>', now())
                 ->first();
 
-            if (!$coupon) {
+            if (! $coupon) {
                 return response()->json([
                     'status' => false,
                     'message' => __('responses.Invalid or expired coupon code'),
@@ -92,7 +93,7 @@ class ServiceController extends Controller
             ->where('customer_id', $customer->id)
             ->first();
 
-        if (!$address) {
+        if (! $address) {
             return response()->json([
                 'status' => false,
                 'message' => __('responses.Address not found or does not belong to you'),
@@ -101,7 +102,7 @@ class ServiceController extends Controller
 
         $service = Service::with('serviceProvider.citiesOfWorking')->find($request->service_id);
 
-        if (!$service->status) {
+        if (! $service->status) {
             return response()->json([
                 'status' => false,
                 'message' => __('responses.Service is not available'),
@@ -110,7 +111,7 @@ class ServiceController extends Controller
 
         $serviceProviderCityIds = $service->serviceProvider->citiesOfWorking->pluck('id')->toArray();
 
-        if (!in_array($address->city_id, $serviceProviderCityIds)) {
+        if (! in_array($address->city_id, $serviceProviderCityIds)) {
             return response()->json([
                 'status' => false,
                 'message' => __('responses.This service is not available in your area'),
@@ -130,9 +131,10 @@ class ServiceController extends Controller
             $coupon = Coupon::where('code', $request->coupon_code)
                 ->where('status', true)
                 ->where('expiry_date', '>', now())
+                ->whereIn('type', ['service', 'both_products_and_services'])
                 ->first();
 
-            if (!$coupon) {
+            if (! $coupon) {
                 return response()->json([
                     'status' => false,
                     'message' => __('responses.Invalid or expired coupon code'),
@@ -149,7 +151,7 @@ class ServiceController extends Controller
         $salePriceAfterDiscount = $salePrice - $discountAmount;
         $profitAmountAfterDiscount = $salePriceAfterDiscount - $serviceProviderPriceAfterDiscount;
 
-        $orderDateTime = Carbon::parse($request->order_date . ' ' . $request->order_time);
+        $orderDateTime = Carbon::parse($request->order_date.' '.$request->order_time);
 
         return response()->json([
             'status' => true,
@@ -194,7 +196,7 @@ class ServiceController extends Controller
             ->where('customer_id', $customer->id)
             ->first();
 
-        if (!$address) {
+        if (! $address) {
             return response()->json([
                 'status' => false,
                 'message' => __('responses.Address not found or does not belong to you'),
@@ -203,7 +205,7 @@ class ServiceController extends Controller
 
         $service = Service::with('serviceProvider.citiesOfWorking')->find($request->service_id);
 
-        if (!$service->status) {
+        if (! $service->status) {
             return response()->json([
                 'status' => false,
                 'message' => __('responses.Service is not available'),
@@ -212,7 +214,7 @@ class ServiceController extends Controller
 
         $serviceProviderCityIds = $service->serviceProvider->citiesOfWorking->pluck('id')->toArray();
 
-        if (!in_array($address->city_id, $serviceProviderCityIds)) {
+        if (! in_array($address->city_id, $serviceProviderCityIds)) {
             return response()->json([
                 'status' => false,
                 'message' => __('responses.This service is not available in your area'),
@@ -235,10 +237,12 @@ class ServiceController extends Controller
                 $coupon = Coupon::where('code', $request->coupon_code)
                     ->where('status', true)
                     ->where('expiry_date', '>', now())
+                    ->whereIn('type', ['service', 'both_products_and_services'])
                     ->first();
 
-                if (!$coupon) {
+                if (! $coupon) {
                     DB::rollBack();
+
                     return response()->json([
                         'status' => false,
                         'message' => __('responses.Invalid or expired coupon code'),
@@ -255,7 +259,7 @@ class ServiceController extends Controller
             $salePriceAfterDiscount = $salePrice - $discountAmount;
             $profitAmountAfterDiscount = $salePriceAfterDiscount - $serviceProviderPriceAfterDiscount;
 
-            $orderDateTime = Carbon::parse($request->order_date . ' ' . $request->order_time);
+            $orderDateTime = Carbon::parse($request->order_date.' '.$request->order_time);
 
             $booking = Booking::create([
                 'service_id' => $service->id,
@@ -300,10 +304,11 @@ class ServiceController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => false,
-                'message'=>__('responses.error happened'),
-                'details' => 'Failed to pay booking: ' . $e->getMessage(),
+                'message' => __('responses.error happened'),
+                'details' => 'Failed to pay booking: '.$e->getMessage(),
             ], 400);
         }
     }
@@ -405,6 +410,7 @@ class ServiceController extends Controller
                 'booking_id' => $booking->id,
             ]);
             DB::commit();
+
             return response()->json([
                 'status' => true,
                 'message' => __('responses.Service rated successfully'),
@@ -412,6 +418,7 @@ class ServiceController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => false,
                 'message' => __('responses.error happened'),

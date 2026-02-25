@@ -24,22 +24,22 @@ class Coupon extends Model
     {
         return $query->where('status', true);
     }
-    
+
     public function scopeExpired($query)
     {
         return $query->where('expiry_date', '<', now())->where('status', true);
     }
-    
+
     public function scopeNotExpired($query)
     {
         return $query->where('expiry_date', '>', now())->where('status', true);
     }
-    
+
     public function scopeValid($query)
     {
         return $query->where('status', true)->where('expiry_date', '>', now())->where('expiry_date', '<', now());
     }
-    
+
     public function scopeInvalid($query)
     {
         return $query->where('status', false)->where('expiry_date', '<', now())->where('expiry_date', '>', now());

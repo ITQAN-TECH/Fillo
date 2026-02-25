@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\api\v1\customers;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\SendOTPEmailJob;
 use App\Models\Customer;
+use App\services\JawalySMSService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\services\JawalySMSService;
 
 class AuthController extends Controller
 {

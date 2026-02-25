@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Banner;
 use App\Models\Permission;
 use App\Models\Service;
 use Illuminate\Database\Seeder;
@@ -23,6 +22,7 @@ class ServicesPermissionsSeeder extends Seeder
             'service_provider_price' => 100,
             'sale_price' => 120,
             'profit_amount' => 20,
+            'duration_time_minutes' => 30,
             'category_id' => 1,
             'sub_category_id' => 1,
             'service_provider_id' => 1,

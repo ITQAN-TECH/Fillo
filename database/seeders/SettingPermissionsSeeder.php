@@ -16,6 +16,7 @@ class SettingPermissionsSeeder extends Seeder
         Setting::firstOrCreate([
             'phone_number' => '+966500000000',
             'email' => 'info@example.com',
+            'shipping_fee' => 20,
         ]);
         Permission::firstOrCreate([
             'name' => 'show-settings',

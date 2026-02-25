@@ -425,7 +425,7 @@ return [
     'you cannot change service status' => 'لا يمكنك تغيير حالة الخدمة',
     'sub category does not belong to category' => 'الفئة الفرعية غير تابعة لهذه الفئة',
     'you cannot delete the only image of the service' => 'لا يمكنك حذف الصورة الوحيدة للخدمة',
-    
+
     // Rate
     'rate deleted successfully' => 'تم حذف التقييم بنجاح',
     'you cannot delete rate' => 'لا يمكنك حذف التقييم',
@@ -471,4 +471,67 @@ return [
     'booking cancelled successfully' => 'تم إلغاء حجز الخدمة بنجاح',
     'booking' => 'الحجز',
     'all bookings' => 'جميع الحجوزات',
+
+    // Products
+    'all products' => 'جميع المنتجات',
+    'product' => 'المنتج',
+    'product created successfully' => 'تم إنشاء المنتج بنجاح',
+    'product updated successfully' => 'تم تحديث المنتج بنجاح',
+    'product deleted successfully' => 'تم حذف المنتج بنجاح',
+    'you cannot delete product' => 'لا يمكنك حذف المنتج',
+    'product status changed successfully' => 'تم تغيير حالة المنتج بنجاح',
+    'variant added successfully' => 'تم إضافة المنتج بنجاح',
+    'variant updated successfully' => 'تم تحديث المنتج بنجاح',
+    'variant deleted successfully' => 'تم حذف المنتج بنجاح',
+    'you cannot delete variant' => 'لا يمكنك حذف المنتج',
+    'variant already exists' => 'المنتج موجود بالفعل',
+    'you cannot delete the only image of the product' => 'لا يمكنك حذف الصورة الوحيدة للمنتج',
+
+    // Colors
+    'all colors' => 'جميع الألوان',
+    'color' => 'اللون',
+    'color created successfully' => 'تم إنشاء اللون بنجاح',
+    'color updated successfully' => 'تم تحديث اللون بنجاح',
+    'color deleted successfully' => 'تم حذف اللون بنجاح',
+    'you cannot delete color' => 'لا يمكنك حذف اللون',
+    'color status changed successfully' => 'تم تغيير حالة اللون بنجاح',
+    'cannot delete color with products' => 'لا يمكن حذف اللون المرتبط بمنتجات',
+
+    // Sizes
+    'all sizes' => 'جميع المقاسات',
+    'size' => 'المقاس',
+    'size created successfully' => 'تم إنشاء المقاس بنجاح',
+    'size updated successfully' => 'تم تحديث المقاس بنجاح',
+    'size deleted successfully' => 'تم حذف المقاس بنجاح',
+    'you cannot delete size' => 'لا يمكنك حذف المقاس',
+    'size status changed successfully' => 'تم تغيير حالة المقاس بنجاح',
+    'cannot delete size with products' => 'لا يمكن حذف المقاس المرتبط بمنتجات',
+
+    // Favorites
+    'Favorites for user' => 'المفضلة للمستخدم',
+    'You cannot favorite your own product or service' => 'لا يمكنك إضافة هذا المنتج أو الخدمة إلى المفضلة',
+    'This Product is already in your Favorites' => 'هذا المنتج موجود بالفعل في المفضلة',
+    'Product added to Favorite successfully!.' => 'تم إضافة المنتج إلى المفضلة بنجاح!',
+    'Product removed from Favorites successfully!.' => 'تم إزالة المنتج من المفضلة بنجاح!',
+    'This Service is already in your Favorites' => 'هذه الخدمة موجودة بالفعل في المفضلة',
+    'Service added to Favorite successfully!.' => 'تم إضافة الخدمة إلى المفضلة بنجاح!',
+    'Service removed from Favorites successfully!.' => 'تم إزالة الخدمة من المفضلة بنجاح!',
+    'Favorites deleted successfully' => 'تم حذف المفضلة بنجاح',
+
+    // Cart
+    'Cart items' => 'عناصر السلة',
+    'Cart total price' => 'إجمالي سعر السلة',
+    'Cart discount percentage' => 'نسبة الخصم',
+    'Cart discount amount' => 'مقدار الخصم',
+    'Cart coupon code' => 'كود الخصم',
+    'Cart coupon id' => 'رقم الكوبون',
+    'Cart coupon code' => 'كود الخصم',
+    'Product variant quantity is not available' => 'كمية المنتج غير متاحة',
+    'Product variant is not available' => 'المنتج غير متاح',
+    'Product is not available' => 'المنتج غير متاح',
+    'Product variant quantity is not available' => 'كمية المنتج غير متاحة',
+    'Product added to Cart successfully!.' => 'تم إضافة المنتج إلى السلة بنجاح!',
+    'Product removed from Cart successfully!.' => 'تم إزالة المنتج من السلة بنجاح!',
+    'Cart emptied successfully!.' => 'تم إفراغ السلة بنجاح!',
+    'Product quantity increased successfully!.' => 'تم زيادة كمية المنتج بنجاح!',
 ];
