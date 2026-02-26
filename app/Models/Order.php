@@ -36,6 +36,8 @@ class Order extends Model
         'subtotal_price_after_discount' => 'decimal:2',
         'shipping_fee' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'can_rate' => 'boolean',
+        'can_request_cancellation' => 'boolean',
     ];
 
     protected $with = [
@@ -61,6 +63,8 @@ class Order extends Model
         'converted_subtotal_price_after_discount',
         'converted_shipping_fee',
         'converted_total_price',
+        'can_rate',
+        'can_request_cancellation',
     ];
 
     public function getConvertedSubtotalPriceAttribute()
@@ -141,5 +145,16 @@ class Order extends Model
     public function latestCancellationRequest()
     {
         return $this->hasOne(OrderCancellationRequest::class)->latestOfMany();
+    }
+
+    public function getCanRateAttribute()
+    {
+        return $this->order_status == 'completed' && ! $this->rates()->where('customer_id', $this->customer_id)->where('order_id', $this->id)->exists();
+    }
+
+    public function getCanRequestCancellationAttribute()
+    {
+        return in_array($this->order_status, ['pending', 'confirmed', 'shipping']) && ! in_array($this->order_status, ['completed', 'refunded', 'cancelled'])
+        && ! $this->cancellationRequests()->where('status', 'pending')->exists();
     }
 }

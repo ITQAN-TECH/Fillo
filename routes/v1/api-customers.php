@@ -72,6 +72,7 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
     Route::get('orders', [OrderController::class, 'index']);
     Route::get('orders/{order_id}', [OrderController::class, 'show']);
     Route::post('orders', [OrderController::class, 'store']);
+    Route::post('orders/{order_id}/rate', [OrderController::class, 'rateOrder']);
     Route::post('orders/{order_id}/request_cancellation', [OrderController::class, 'requestCancellation']);
     Route::get('cancellation_requests', [OrderController::class, 'myCancellationRequests']);
     Route::get('cancellation_requests/{request_id}', [OrderController::class, 'showCancellationRequest']);

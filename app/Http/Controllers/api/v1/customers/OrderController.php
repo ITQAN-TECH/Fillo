@@ -10,6 +10,7 @@ use App\Models\OrderCancellationRequest;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\ProductVariant;
+use App\Models\Rate;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -179,6 +180,67 @@ class OrderController extends Controller
                 'success' => true,
                 'message' => __('responses.order created successfully'),
                 'order' => $order->fresh(),
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.error happened'),
+            ], 400);
+        }
+    }
+
+    public function rateOrder(Request $request, $order_id)
+    {
+        $request->validate([
+            'rate' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string',
+        ], [
+            'rate' => __('responses.The rate must be between 1 and 5'),
+        ]);
+
+        $customer = Auth::guard('customers')->user();
+
+        $order = Order::findOrFail($order_id);
+
+        if ($order->customer_id != $customer->id) {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.You are not authorized to rate this order'),
+            ], 400);
+        }
+        if ($order->order_status != 'completed') {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.Cannot rate this order'),
+            ], 400);
+        }
+        $order = Order::findOrFail($order_id);
+        if ($order->rates()->where('customer_id', $customer->id)->where('order_id', $order->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.You have already rated this order'),
+            ], 400);
+        }
+        DB::beginTransaction();
+        try {
+            $uniqueProducts = $order->items->unique('product_id');
+            foreach ($uniqueProducts as $item) {
+                Rate::create([
+                    'customer_id' => $customer->id,
+                    'rateable_id' => $item->product_id,
+                    'rateable_type' => 'App\Models\Product',
+                    'rate' => $request->rate,
+                    'comment' => $request->comment,
+                    'order_id' => $order->id,
+                ]);
+            }
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => __('responses.Order rated successfully'),
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();

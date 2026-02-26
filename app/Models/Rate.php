@@ -12,6 +12,7 @@ class Rate extends Model
         'rate',
         'customer_id',
         'booking_id',
+        'order_id',
         'comment',
     ];
 
@@ -32,6 +33,11 @@ class Rate extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 
     protected static function booted()
