@@ -31,7 +31,7 @@ return [
     'role not found' => 'الدور غير موجود',
     'role created successfully' => 'تم إنشاء الدور بنجاح',
     'role updated successfully' => 'تم تحديث الدور بنجاح',
-    'Too Many Requests.' => 'عدد كبير من الطلبات، يرجى المحاولة لاحقاً',
+    'Too Many Requests.' => 'عدد كبير من الطلبات، يرجى المحاولة لاحقاً بعد :seconds ثانية',
     'not found' => 'غير موجود',
     'login successfully' => 'تم تسجيل الدخول بنجاح',
     'logout successfully' => 'تم تسجيل الخروج بنجاح',

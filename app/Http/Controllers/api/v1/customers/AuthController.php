@@ -18,11 +18,11 @@ class AuthController extends Controller
             'phone' => 'required|string|unique:customers,phone',
             'password' => 'required|string|max:255|confirmed',
         ]);
-        $throttleResult = $this->throttle($request->ip(), 'register_one_minute', 1);
+        $throttleResult = $this->throttle($request->ip(), 'register_one_minute', 3);
         if ($throttleResult !== true) {
             return $throttleResult;
         }
-        $throttleResult = $this->throttle($request->ip(), 'register_ten_minute', 3, 10);
+        $throttleResult = $this->throttle($request->ip(), 'register_ten_minute', 10, 10);
         if ($throttleResult !== true) {
             return $throttleResult;
         }
@@ -87,11 +87,11 @@ class AuthController extends Controller
                 'otp' => $otp,
             ]);
             // Rate limit check
-            $throttleResult = $this->throttle($request->ip(), 'login_one_minute', 1);
+            $throttleResult = $this->throttle($request->ip(), 'login_one_minute', 3);
             if ($throttleResult !== true) {
                 return $throttleResult;
             }
-            $throttleResult = $this->throttle($request->ip(), 'login_ten_minute', 3, 10);
+            $throttleResult = $this->throttle($request->ip(), 'login_ten_minute', 10, 10);
             if ($throttleResult !== true) {
                 return $throttleResult;
             }
@@ -182,11 +182,11 @@ class AuthController extends Controller
             ], 404);
         }
         // Rate limit check
-        $throttleResult = $this->throttle($request->ip(), 'resend_otp_one_minute', 1);
+        $throttleResult = $this->throttle($request->ip(), 'resend_otp_one_minute', 3);
         if ($throttleResult !== true) {
             return $throttleResult;
         }
-        $throttleResult = $this->throttle($request->ip(), 'resend_otp_ten_minute', 3, 10);
+        $throttleResult = $this->throttle($request->ip(), 'resend_otp_ten_minute', 10, 10);
         if ($throttleResult !== true) {
             return $throttleResult;
         }

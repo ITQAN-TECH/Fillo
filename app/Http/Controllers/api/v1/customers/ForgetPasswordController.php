@@ -15,11 +15,11 @@ class ForgetPasswordController extends Controller
         $request->validate([
             'phone' => 'required|string|max:255',
         ]);
-        $throttleResult = $this->throttle($request->ip(), 'forget_password_one_minute', 1);
+        $throttleResult = $this->throttle($request->ip(), 'forget_password_one_minute', 3);
         if ($throttleResult !== true) {
             return $throttleResult;
         }
-        $throttleResult = $this->throttle($request->ip(), 'forget_password_ten_minute', 3, 10);
+        $throttleResult = $this->throttle($request->ip(), 'forget_password_ten_minute', 10, 10);
         if ($throttleResult !== true) {
             return $throttleResult;
         }

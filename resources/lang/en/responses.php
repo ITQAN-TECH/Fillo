@@ -54,7 +54,7 @@ return [
     'role created successfully' => 'Role created successfully',
     'role updated successfully' => 'Role updated successfully',
     'role not deleted' => 'Role not deleted',
-    'Too Many Requests.' => 'Too Many Requests.',
+    'Too Many Requests.' => 'Too Many Requests. Please try again after :seconds seconds',
     'not found' => 'Not found',
     'logout successfully' => 'Logout successfully',
     'login successfully' => 'Login successfully',

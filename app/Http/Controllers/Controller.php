@@ -14,7 +14,7 @@ abstract class Controller
         }, $minutes * 60)) {
             return response()->json([
                 'status' => false,
-                'message' => __('responses.Too Many Requests.'),
+                'message' => __('responses.Too Many Requests.', ['seconds' => RateLimiter::availableIn($minuteKey)]),
                 'seconds' => RateLimiter::availableIn($minuteKey),
             ], 429);
         }
