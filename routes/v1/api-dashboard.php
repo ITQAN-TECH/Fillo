@@ -164,6 +164,7 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
 
     // Color Routes
     Route::get('colors', [ColorController::class, 'index']);
+    Route::get('colors/search', [ColorController::class, 'search']);
     Route::get('colors/{color_id}', [ColorController::class, 'show']);
     Route::post('colors', [ColorController::class, 'store']);
     Route::post('colors/{color_id}', [ColorController::class, 'update']);
@@ -172,6 +173,7 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
 
     // Size Routes
     Route::get('sizes', [SizeController::class, 'index']);
+    Route::get('sizes/search', [SizeController::class, 'search']);
     Route::get('sizes/{size_id}', [SizeController::class, 'show']);
     Route::post('sizes', [SizeController::class, 'store']);
     Route::post('sizes/{size_id}', [SizeController::class, 'update']);

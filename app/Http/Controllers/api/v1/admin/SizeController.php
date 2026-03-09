@@ -45,6 +45,36 @@ class SizeController extends Controller
         ]);
     }
 
+    public function search(Request $request)
+    {
+        if (! Auth::guard('admins')->user()->hasPermission('show-products')) {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.forbidden'),
+            ], 403);
+        }
+        $request->validate([
+            'search' => 'nullable|string',
+        ]);
+
+        $sizes = Size::when($request->has('search'), function ($query) use ($request) {
+            $search = $request->search;
+            $query->where(function ($query) use ($search) {
+                $query->where('ar_name', 'like', '%'.$search.'%')
+                    ->orWhere('en_name', 'like', '%'.$search.'%')
+                    ->orWhere('code', 'like', '%'.$search.'%');
+            });
+        })
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => __('responses.all sizes'),
+            'sizes' => $sizes,
+        ]);
+    }
+
     public function show($size_id)
     {
         if (! Auth::guard('admins')->user()->hasPermission('show-products')) {
