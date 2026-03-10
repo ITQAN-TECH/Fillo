@@ -313,14 +313,19 @@ class ServiceController extends Controller
         }
     }
 
-    public function myBookings()
+    public function myBookings(Request $request)
     {
+        $request->validate([
+            'status' => 'sometimes|nullable|in:pending,confirmed,completed,all',
+        ]);
         $customer = Auth::guard('customers')->user();
-
         $bookings = Booking::where('customer_id', $customer->id)
             ->with(['service', 'customerAddress', 'payment'])
+            ->when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
+                $query->where('order_status', $request->status);
+            })
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->paginate();
 
         return response()->json([
             'success' => true,
