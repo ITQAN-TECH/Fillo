@@ -46,6 +46,10 @@ class Product extends Model
         'sale_price',
     ];
 
+    protected $withCount = [
+        'rates',
+    ];
+
     public function getConvertedSalePriceAttribute()
     {
         $rate = Currency::getRate('SAR');
