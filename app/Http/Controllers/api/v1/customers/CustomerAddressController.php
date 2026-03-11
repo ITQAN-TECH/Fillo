@@ -15,7 +15,7 @@ class CustomerAddressController extends Controller
     public function index()
     {
         $customer = Auth::guard('customers')->user();
-        $addresses = $customer->addresses()->latest()->get();
+        $addresses = $customer->addresses()->orderBy('is_default', 'desc')->get();
 
         return response()->json([
             'success' => true,
