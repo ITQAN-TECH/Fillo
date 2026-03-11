@@ -41,6 +41,7 @@ class Customer extends Authenticatable
     protected $withCount = [
         'favorites',
         'bookings',
+        'orders',
     ];
 
     protected function casts()
