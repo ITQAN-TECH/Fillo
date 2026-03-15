@@ -149,12 +149,17 @@ class Order extends Model
 
     public function getCanRateAttribute()
     {
-        return $this->order_status == 'completed' && ! $this->rates()->where('customer_id', $this->customer_id)->where('order_id', $this->id)->exists();
+        return $this->order_status == 'completed' && ! $this->rate()->exists();
     }
 
     public function getCanRequestCancellationAttribute()
     {
         return in_array($this->order_status, ['pending', 'confirmed', 'shipping']) && ! in_array($this->order_status, ['completed', 'refunded', 'cancelled'])
         && ! $this->cancellationRequests()->where('status', 'pending')->exists();
+    }
+
+    public function rate()
+    {
+        return $this->hasOne(Rate::class);
     }
 }

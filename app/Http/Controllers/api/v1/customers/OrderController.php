@@ -217,7 +217,7 @@ class OrderController extends Controller
             ], 400);
         }
         $order = Order::findOrFail($order_id);
-        if ($order->rates()->where('customer_id', $customer->id)->where('order_id', $order->id)->exists()) {
+        if ($order->rate()->exists()) {
             return response()->json([
                 'success' => false,
                 'message' => __('responses.You have already rated this order'),
