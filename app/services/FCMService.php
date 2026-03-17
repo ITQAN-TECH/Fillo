@@ -3,13 +3,12 @@
 namespace App\services;
 
 use Google\Auth\Credentials\ServiceAccountCredentials;
-use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class FCMService
 {
-    protected $client;
-
     protected $credentialsPath;
 
     protected $projectId;
@@ -20,117 +19,97 @@ class FCMService
         $this->projectId = config('services.fcm.project_id');
     }
 
-    public function sendNotification($to, $title, $body, $FCMNotificationTypeData = [])
+    /**
+     * جلب التوكن مع التخزين المؤقت لمدة ساعة
+     */
+    protected function getAccessToken()
     {
-        try {
-            // Load Service Account credentials from JSON file
+        return Cache::remember('fcm_access_token', 3500, function () {
             $credentials = new ServiceAccountCredentials(
                 'https://www.googleapis.com/auth/firebase.messaging',
                 $this->credentialsPath
             );
+            $token = $credentials->fetchAuthToken();
 
-            // Get an OAuth 2.0 token
-            $authToken = $credentials->fetchAuthToken()['access_token'];
-
-            $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
-
-            // تحويل type_data إلى string إذا كان array
-            $typeDataString = is_array($FCMNotificationTypeData) ? json_encode($FCMNotificationTypeData) : $FCMNotificationTypeData;
-
-            $payload = [
-                'message' => [
-                    'token' => $to,
-                    'data' => [
-                        'title' => (string) $title,
-                        'body' => (string) $body,
-                        'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                        'type_data' => $typeDataString,
-                    ],
-                    'notification' => [
-                        'title' => (string) $title,
-                        'body' => (string) $body,
-                    ],
-                    'android' => [
-                        'priority' => 'high',
-                    ],
-                    'apns' => [
-                        'headers' => [
-                            'apns-priority' => '10',
-                        ],
-                        'payload' => [
-                            'aps' => [
-                                'content-available' => 1,
-                                'badge' => 0,
-                                'priority' => 'high',
-                                'sound' => 'default',
-                            ],
-                        ],
-                    ],
-                ],
-            ];
-
-            // Send POST request with raw JSON
-            $response = Http::withToken($authToken)
-                ->withHeaders(['Content-Type' => 'application/json'])
-                ->withBody(json_encode($payload), 'application/json')
-                ->post($url);
-
-            $responseBody = $response->getBody()->getContents();
-
-            return $responseBody;
-        } catch (RequestException $e) {
-            return $e->getMessage();
-        } catch (\Exception $e) {
-            throw $e;
-        }
+            return $token['access_token'];
+        });
     }
 
-    public function sendToTopic($topicName, $title, $body, $FCMNotificationTypeData = [])
+    public function sendNotification($to, $title, $body, $FCMNotificationTypeData = [])
     {
+        $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
+
         $typeDataString = is_array($FCMNotificationTypeData) ? json_encode($FCMNotificationTypeData) : $FCMNotificationTypeData;
+
         $payload = [
             'message' => [
-                'topic' => $topicName,
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                ],
+                'token' => $to,
                 'data' => [
-                    'title' => $title,
-                    'body' => $body,
+                    'title' => (string) $title,
+                    'body' => (string) $body,
                     'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
                     'type_data' => $typeDataString,
                 ],
+                'notification' => [
+                    'title' => (string) $title,
+                    'body' => (string) $body,
+                ],
                 'android' => ['priority' => 'high'],
                 'apns' => [
+                    'headers' => ['apns-priority' => '10'],
                     'payload' => [
-                        'aps' => ['sound' => 'default', 'content-available' => 1],
+                        'aps' => ['content-available' => 1, 'badge' => 0, 'sound' => 'default'],
                     ],
                 ],
             ],
         ];
 
-        return $this->executeSend($payload);
+        return $this->executeRequest($url, $payload);
     }
 
-    protected function executeSend($payload)
+    public function sendToTopic($topicName, $title, $body, $FCMNotificationTypeData = [])
     {
-        $credentials = new ServiceAccountCredentials(
-            'https://www.googleapis.com/auth/firebase.messaging',
-            $this->credentialsPath
-        );
-        $authToken = $credentials->fetchAuthToken()['access_token'];
         $url = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
+        $typeDataString = is_array($FCMNotificationTypeData) ? json_encode($FCMNotificationTypeData) : $FCMNotificationTypeData;
 
+        $payload = [
+            'message' => [
+                'topic' => $topicName,
+                'data' => [
+                    'title' => (string) $title,
+                    'body' => (string) $body,
+                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                    'type_data' => $typeDataString,
+                ],
+                'notification' => [
+                    'title' => (string) $title,
+                    'body' => (string) $body,
+                ],
+                'android' => ['priority' => 'high'],
+                'apns' => [
+                    'headers' => ['apns-priority' => '10'],
+                    'payload' => [
+                        'aps' => ['content-available' => 1, 'badge' => 0, 'sound' => 'default'],
+                    ],
+                ],
+            ],
+        ];
+
+        return $this->executeRequest($url, $payload);
+    }
+
+    protected function executeRequest($url, $payload)
+    {
         try {
-            $response = Http::withToken($authToken)
-                ->withHeaders(['Content-Type' => 'application/json'])
-                ->withBody(json_encode($payload), 'application/json')
-                ->post($url);
+            $response = Http::withToken($this->getAccessToken())
+                ->asJson()
+                ->post($url, $payload);
 
             return $response->json();
         } catch (\Exception $e) {
-            return $e->getMessage();
+            Log::error('FCM Error: '.$e->getMessage());
+
+            return null;
         }
     }
 }
