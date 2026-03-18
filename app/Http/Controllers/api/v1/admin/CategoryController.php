@@ -106,7 +106,7 @@ class CategoryController extends Controller
             'ar_title' => 'required|string|max:255',
             'en_title' => 'required|string|max:255',
             'type' => 'required|string|in:service,product',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
+            'image' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
             'status' => 'nullable|boolean',
         ]);
         try {
@@ -154,7 +154,7 @@ class CategoryController extends Controller
             'ar_title' => 'sometimes|nullable|string|max:255',
             'en_title' => 'sometimes|nullable|string|max:255',
             'type' => 'sometimes|nullable|string|in:service,product',
-            'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
+            'image' => 'sometimes|nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
         ]);
         $category = Category::findOrFail($category_id);
         try {

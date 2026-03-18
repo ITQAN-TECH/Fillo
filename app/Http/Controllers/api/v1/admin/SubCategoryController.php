@@ -102,7 +102,7 @@ class SubCategoryController extends Controller
         $request->validate([
             'ar_title' => 'required|string|max:255',
             'en_title' => 'required|string|max:255',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
+            'image' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
             'category_id' => 'required|exists:categories,id',
             'status' => 'nullable|boolean',
         ]);
@@ -150,7 +150,7 @@ class SubCategoryController extends Controller
         $request->validate([
             'ar_title' => 'sometimes|nullable|string|max:255',
             'en_title' => 'sometimes|nullable|string|max:255',
-            'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
+            'image' => 'sometimes|nullable|file|mimes:jpeg,png,jpg,gif,svg,webp|max:7168',
             'category_id' => 'sometimes|nullable|exists:categories,id',
         ]);
         $subCategory = SubCategory::findOrFail($subCategory_id);
