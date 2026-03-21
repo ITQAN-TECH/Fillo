@@ -52,18 +52,18 @@ class SupportChatController extends Controller
     public function show()
     {
         $customer = Auth::guard('customers')->user();
-        try {
-            $chat = SupportChat::where('customer_id', $customer->id)
-                ->orderBy('created_at', 'asc')
-                ->get();
 
-            $chat->each(function ($message) {
-                if ($message->sender_type == 'admin' && $message->read_at == null) {
-                    $message->update([
-                        'read_at' => now(),
-                    ]);
-                }
-            });
+        try {
+            // 1. تحديث كل الرسائل غير المقروءة من الأدمن بطلب واحد قبل الـ Pagination
+            SupportChat::where('customer_id', $customer->id)
+                ->where('sender_type', 'admin')
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+
+            // 2. جلب البيانات مع الـ Pagination بعد التحديث
+            $chat = SupportChat::where('customer_id', $customer->id)
+                ->orderBy('created_at', 'desc')
+                ->paginate();
 
             return response()->json([
                 'success' => true,
