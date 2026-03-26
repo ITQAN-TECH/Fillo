@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'fcm' => [
+        'credentialsPath' => env('FCM_CREDENTIALS_PATH'),
+        'project_id' => env('FCM_PROJECT_ID'),
+    ],
+
     'exchange_rate' => [
         'api_key' => env('EXCHANGE_RATE_API_KEY'),
     ],
