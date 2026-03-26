@@ -23,7 +23,7 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
     Route::post('change_password', [ProfileController::class, 'changePassword']);
     Route::post('edit_profile', [ProfileController::class, 'editProfile']);
     Route::get('profile', [ProfileController::class, 'show']);
-    Route::post('delete_profile_image', [ProfileController::class, 'deleteProfileImage']);
+    Route::delete('delete_profile_image', [ProfileController::class, 'deleteProfileImage']);
     Route::post('delete_account', [ProfileController::class, 'deleteAccount']);
     Route::post('change_interests', [ProfileController::class, 'changeInterests']);
     Route::post('sync_images_and_videos', [ProfileController::class, 'syncImagesAndVideos']);
