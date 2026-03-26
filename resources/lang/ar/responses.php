@@ -625,4 +625,6 @@ return [
     'total completed bookings' => 'إجمالي حجوزات الخدمات المكتملة',
     'total in progress bookings' => 'إجمالي حجوزات الخدمات قيد التنفيذ',
     'total cancelled bookings' => 'إجمالي حجوزات الخدمات الملغاة',
+
+    'profile image deleted successfully' => 'تم حذف الصورة الشخصية بنجاح',
 ];

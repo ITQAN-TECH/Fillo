@@ -637,4 +637,7 @@ return [
     'total completed bookings' => 'Total completed bookings',
     'total in progress bookings' => 'Total in progress bookings',
     'total cancelled bookings' => 'Total cancelled bookings',
+
+    'profile image deleted successfully' => 'Profile image deleted successfully',
+
 ];

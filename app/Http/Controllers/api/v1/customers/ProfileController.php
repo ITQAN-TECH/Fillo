@@ -56,6 +56,20 @@ class ProfileController extends Controller
         }
     }
 
+    public function deleteProfileImage()
+    {
+        $customer = Auth::guard('customers')->user();
+        Storage::delete('public/media/' . $customer->image);
+        $customer->update([
+            'image' => null,
+        ]);
+        return response()->json([
+            'success' => true,
+            'message' => __('responses.profile image deleted successfully'),
+            'customer' => $customer->refresh(),
+        ]);
+    }
+
     public function show()
     {
         $customer = Auth::guard('customers')->user();
