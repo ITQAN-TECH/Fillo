@@ -166,10 +166,10 @@ class OrderController extends Controller
 
             Payment::create([
                 'order_id' => $order->id,
-                'payment_method' => 'pending',
+                'payment_method' => 'visa',
                 'amount' => $totalPrice,
                 'currency' => 'SAR',
-                'status' => 'pending',
+                'status' => 'completed',
             ]);
 
             Cart::where('customer_id', $customer->id)->delete();
