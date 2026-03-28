@@ -41,7 +41,7 @@ class SendSheduleNotificationFromAdmin extends Command
             }
             $notification = new NotificationFromAdminNotification($notification_from_admin);
             $fcmTitleKey = $notification_from_admin->title;
-            $fcmBodyKey = $notification_from_admin->body;
+            $fcmBodyKey = $notification_from_admin->desc;
             $fcmNotificationTypeData = [
                 'type' => 'notification_from_admin',
             ];
