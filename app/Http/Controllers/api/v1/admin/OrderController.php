@@ -32,6 +32,7 @@ class OrderController extends Controller
         $request->validate([
             'search' => 'sometimes|nullable|string',
             'status' => 'sometimes|nullable|in:pending,confirmed,shipping,delivered,completed,cancelled,refunded,all',
+            'customer_id' => 'sometimes|nullable|exists:customers,id',
         ]);
 
         $orders = Order::when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
@@ -47,7 +48,12 @@ class OrderController extends Controller
                             ->orWhere('phone', 'like', '%'.$search.'%');
                     });
             });
-        })->latest()->paginate();
+        })
+        ->when($request->has('customer_id'), function ($query) use ($request) {
+            $query->where('customer_id', $request->customer_id);
+        })
+        ->latest()
+        ->paginate();
 
         $report = [];
         $report['orders_count'] = Order::count();
