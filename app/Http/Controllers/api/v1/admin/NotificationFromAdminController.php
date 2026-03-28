@@ -93,7 +93,7 @@ class NotificationFromAdminController extends Controller
                 ]);
                 if ($request->target == 'specific') {
                     $recipients = Customer::where('status', true)->whereIn('id', $request->target_data)->get();
-                    $topic = 'specific_users';
+                    $topic = 'specific_user';
                 } else {
                     $recipients = Customer::where('status', true)->get();
                     $topic = 'customers';
