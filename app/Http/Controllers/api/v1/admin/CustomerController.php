@@ -80,7 +80,7 @@ class CustomerController extends Controller
             ], 403);
         }
         $customer = Customer::with('addresses')->findOrFail($customer_id);
-        $rates = $customer->rates()->with('rateable')->latest()->paginate();
+        $rates = $customer->rates()->with('rateable','order:id,customer_id,order_number,order_status')->latest()->paginate();
 
         return response()->json([
             'success' => true,
