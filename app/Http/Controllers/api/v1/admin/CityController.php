@@ -41,6 +41,41 @@ class CityController extends Controller
         ]);
     }
 
+    public function search(Request $request)
+    {
+        if (! Auth::guard('admins')->user()->hasPermission('show-cities')) {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.forbidden'),
+            ], 403);
+        }
+        $request->validate([
+            'search' => 'nullable|string',
+            'country_id' => 'sometimes|nullable|exists:countries,id',
+            'status' => 'sometimes|nullable|in:active,inactive,all',
+        ]);
+        $cities = City::when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
+            $query->where('status', $request->status == 'active' ? true : false);
+        })->when($request->has('country_id'), function ($query) use ($request) {
+            $query->where('country_id', $request->country_id);
+        })->when($request->has('search'), function ($query) use ($request) {
+            $search = $request->search;
+            $query->where(function ($query) use ($search) {
+                $query->where('ar_name', 'like', '%'.$search.'%')
+                    ->orWhere('en_name', 'like', '%'.$search.'%')
+                    ->orWhereHas('country', function ($query) use ($search) {
+                        $query->where('ar_name', 'like', '%'.$search.'%')
+                            ->orWhere('en_name', 'like', '%'.$search.'%');
+                    });
+            });
+        })->with('country')->get();
+        return response()->json([
+            'success' => true,
+            'message' => __('responses.all cities'),
+            'cities' => $cities,
+        ]);
+    }
+
     public function show($city_id)
     {
         if (! Auth::guard('admins')->user()->hasPermission('show-cities')) {

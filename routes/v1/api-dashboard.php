@@ -60,6 +60,7 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
 
     // Country Routes
     Route::get('countries', [CountryController::class, 'index']);
+    Route::get('countries/search', [CountryController::class, 'search']);
     Route::get('countries/{country_id}', [CountryController::class, 'show']);
     Route::post('countries', [CountryController::class, 'store']);
     Route::post('countries/{country_id}', [CountryController::class, 'update']);
@@ -68,6 +69,7 @@ Route::group(['prefix' => 'v1/dashboard/', 'middleware' => ['auth:admins', Check
 
     // City Routes
     Route::get('cities', [CityController::class, 'index']);
+    Route::get('cities/search', [CityController::class, 'search']);
     Route::get('cities/{city_id}', [CityController::class, 'show']);
     Route::post('cities', [CityController::class, 'store']);
     Route::post('cities/{city_id}', [CityController::class, 'update']);

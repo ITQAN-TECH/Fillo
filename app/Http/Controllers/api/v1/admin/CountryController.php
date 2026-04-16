@@ -25,8 +25,8 @@ class CountryController extends Controller
         $countries = Country::when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
             $query->where(function ($query) use ($search) {
-                $query->where('ar_name', 'like', '%'.$search.'%')
-                    ->orWhere('en_name', 'like', '%'.$search.'%');
+                $query->where('ar_name', 'like', '%' . $search . '%')
+                    ->orWhere('en_name', 'like', '%' . $search . '%');
             });
         })->latest()->paginate();
         $report = [];
@@ -38,6 +38,31 @@ class CountryController extends Controller
             'success' => true,
             'message' => __('responses.all countries'),
             'report' => $report,
+            'countries' => $countries,
+        ]);
+    }
+
+    public function search(Request $request)
+    {
+        if (! Auth::guard('admins')->user()->hasPermission('show-countries')) {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.forbidden'),
+            ], 403);
+        }
+        $request->validate([
+            'search' => 'nullable|string',
+            'status' => 'sometimes|nullable|in:active,inactive,all',
+        ]);
+        $countries = Country::when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
+            $query->where('status', $request->status == 'active' ? true : false);
+        })->when($request->has('search'), function ($query) use ($request) {
+            $query->where('ar_name', 'like', '%' . $request->search . '%')
+                ->orWhere('en_name', 'like', '%' . $request->search . '%');
+        })->get();
+        return response()->json([
+            'success' => true,
+            'message' => __('responses.all countries'),
             'countries' => $countries,
         ]);
     }
@@ -81,7 +106,7 @@ class CountryController extends Controller
             ]);
             if ($request->hasFile('flag')) {
                 $name = $request->flag->hashName();
-                $filename = time().'_'.uniqid().'_'.$name;
+                $filename = time() . '_' . uniqid() . '_' . $name;
                 $request->flag->storeAs('public/media/', $filename);
                 $country->update([
                     'flag' => $filename,
@@ -125,9 +150,9 @@ class CountryController extends Controller
                 'en_name' => $request->en_name ?? $country->en_name,
             ]);
             if ($request->hasFile('flag')) {
-                Storage::delete('public/media/'.$country->flag);
+                Storage::delete('public/media/' . $country->flag);
                 $name = $request->flag->hashName();
-                $filename = time().'_'.uniqid().'_'.$name;
+                $filename = time() . '_' . uniqid() . '_' . $name;
                 $request->flag->storeAs('public/media/', $filename);
                 $country->update([
                     'flag' => $filename,
