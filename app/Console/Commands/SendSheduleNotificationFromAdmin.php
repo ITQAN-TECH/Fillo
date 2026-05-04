@@ -36,8 +36,10 @@ class SendSheduleNotificationFromAdmin extends Command
             ]);
             if ($notification_from_admin->target == 'specific') {
                 $recipients = Customer::where('status', true)->whereIn('id', $notification_from_admin->target_data)->get();
+                $topic='specific_user';
             } else {
                 $recipients = Customer::where('status', true)->get();
+                $topic='customers';
             }
             $notification = new NotificationFromAdminNotification($notification_from_admin);
             $fcmTitleKey = $notification_from_admin->title;
@@ -46,7 +48,7 @@ class SendSheduleNotificationFromAdmin extends Command
                 'type' => 'notification_from_admin',
             ];
             if ($recipients) {
-                SendNotificationJob::dispatch($recipients, $notification, $fcmTitleKey, $fcmBodyKey, true, [], $fcmNotificationTypeData)->onQueue('notifications');
+                SendNotificationJob::dispatch($recipients, $notification, $fcmTitleKey, $fcmBodyKey, true, [], $fcmNotificationTypeData, $topic)->onQueue('notifications');
             }
         }
     }
