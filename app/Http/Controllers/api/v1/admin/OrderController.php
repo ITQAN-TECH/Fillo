@@ -14,9 +14,11 @@ use App\Notifications\customers\OrderDeliveredNotification;
 use App\Notifications\customers\OrderRefundedNotification;
 use App\Notifications\customers\OrderRejectedNotification;
 use App\Notifications\customers\OrderShippedNotification;
+use App\Services\MyFatoorahService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -176,11 +178,12 @@ class OrderController extends Controller
             ]);
 
             $payment = Payment::where('order_id', $order->id)->first();
-            if ($payment) {
-                $payment->update([
-                    'status' => 'refunded',
-                    'refunded_amount' => $order->total_price,
-                ]);
+            if ($payment && $payment->status === 'completed') {
+                $this->attemptMyFatoorahRefund(
+                    $payment,
+                    $order->total_price,
+                    'Order #'.$order->order_number.' rejected by admin'
+                );
             }
 
             $notification = new OrderRejectedNotification($order);
@@ -395,6 +398,7 @@ class OrderController extends Controller
                 }
             }
 
+            // Shipping fee is not refunded when customer failed to receive the order
             $refundAmount = $order->total_price;
             if ($request->cancellation_reason == 'customer_not_received') {
                 $refundAmount = $order->total_price - $order->shipping_fee;
@@ -407,11 +411,12 @@ class OrderController extends Controller
             ]);
 
             $payment = Payment::where('order_id', $order->id)->first();
-            if ($payment) {
-                $payment->update([
-                    'status' => 'refunded',
-                    'refunded_amount' => $refundAmount,
-                ]);
+            if ($payment && $payment->status === 'completed') {
+                $this->attemptMyFatoorahRefund(
+                    $payment,
+                    $refundAmount,
+                    'Order #'.$order->order_number.' cancelled — '.$request->cancellation_reason
+                );
             }
 
             $notification = new OrderCancelledNotification($order, $refundAmount);
@@ -473,11 +478,12 @@ class OrderController extends Controller
             ]);
 
             $payment = Payment::where('order_id', $order->id)->first();
-            if ($payment) {
-                $payment->update([
-                    'status' => 'refunded',
-                    'refunded_amount' => $order->total_price,
-                ]);
+            if ($payment && $payment->status === 'completed') {
+                $this->attemptMyFatoorahRefund(
+                    $payment,
+                    $order->total_price,
+                    'Order #'.$order->order_number.' refunded by admin'
+                );
             }
 
             $notification = new OrderRefundedNotification($order);
@@ -503,6 +509,51 @@ class OrderController extends Controller
                 'success' => false,
                 'message' => __('responses.error happened'),
             ], 400);
+        }
+    }
+
+    /**
+     * Attempt a MyFatoorah refund and update the payment record.
+     * Errors are logged but do NOT bubble up — admin can retry manually.
+     */
+    private function attemptMyFatoorahRefund(Payment $payment, float $amount, string $comment): void
+    {
+        // Only refund if we have a PaymentId or InvoiceId to reference
+        $paymentId = $payment->transaction_id ?? $payment->invoice_id;
+
+        if (! $paymentId) {
+            Log::warning('MyFatoorah refund skipped — no transaction_id or invoice_id', [
+                'payment_id' => $payment->id,
+            ]);
+            $payment->update([
+                'status' => 'refunded',
+                'refunded_amount' => $amount,
+            ]);
+
+            return;
+        }
+
+        try {
+            $myfatoorah = app(MyFatoorahService::class);
+            $myfatoorah->makeRefund($paymentId, $amount, $comment);
+
+            $payment->update([
+                'status' => 'refunded',
+                'refunded_amount' => $amount,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MyFatoorah refund failed — requires manual action', [
+                'payment_id' => $payment->id,
+                'mf_payment_id' => $paymentId,
+                'amount' => $amount,
+                'error' => $e->getMessage(),
+            ]);
+            // Mark as refunded in our DB so the order lifecycle proceeds;
+            // the failed MF refund is recorded in logs for admin follow-up.
+            $payment->update([
+                'status' => 'refunded',
+                'refunded_amount' => $amount,
+            ]);
         }
     }
 }

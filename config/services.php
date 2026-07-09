@@ -44,4 +44,10 @@ return [
         'api_key' => env('EXCHANGE_RATE_API_KEY'),
     ],
 
+    'myfatoorah' => [
+        'test_mode' => env('MYFATOORAH_TEST_MODE', true),
+        'test_api_key' => env('MYFATOORAH_TEST_API_KEY', ''),
+        'live_api_key' => env('MYFATOORAH_LIVE_API_KEY', ''),
+    ],
+
 ];

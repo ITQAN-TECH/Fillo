@@ -8,6 +8,7 @@ use App\Http\Controllers\api\v1\customers\FCMToken\FCMTokenController;
 use App\Http\Controllers\api\v1\customers\ForgetPasswordController;
 use App\Http\Controllers\api\v1\customers\notifications\database\DatabaseNotificationController;
 use App\Http\Controllers\api\v1\customers\OrderController;
+use App\Http\Controllers\api\v1\customers\PaymentController;
 use App\Http\Controllers\api\v1\customers\ProfileController;
 use App\Http\Controllers\api\v1\customers\ServiceController;
 use App\Http\Controllers\api\v1\customers\SupportChatController;
@@ -86,6 +87,13 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
     Route::get('bookings/{booking_id}', [ServiceController::class, 'bookingDetails']);
     Route::post('bookings/{booking_id}/cancel', [ServiceController::class, 'cancelBooking']);
     Route::post('bookings/{booking_id}/rate', [ServiceController::class, 'rateService']);
+});
+
+// MyFatoorah callback & webhook — no auth, called by MyFatoorah or browser redirects
+Route::group(['prefix' => 'v1/myfatoorah'], function () {
+    Route::get('callback', [PaymentController::class, 'callback']);
+    Route::get('error', [PaymentController::class, 'error']);
+    Route::post('webhook', [PaymentController::class, 'webhook']);
 });
 Route::group(['prefix' => 'v1/customers/'], function () {
 

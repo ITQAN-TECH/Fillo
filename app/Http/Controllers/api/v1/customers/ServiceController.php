@@ -9,10 +9,12 @@ use App\Models\CustomerAddress;
 use App\Models\Payment;
 use App\Models\Rate;
 use App\Models\Service;
+use App\Services\MyFatoorahService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ServiceController extends Controller
 {
@@ -185,12 +187,16 @@ class ServiceController extends Controller
             'order_date' => 'required|date|after_or_equal:today',
             'order_time' => 'required|date_format:H:i',
             'coupon_code' => 'nullable|string|exists:coupons,code',
-            'payment_method' => 'required|string',
+            'payment_source' => 'nullable|in:sdk,web',
+            // Required only when confirming payment (step 2 / SDK)
+            'payment_method' => 'nullable|string',
             'transaction_id' => 'nullable|string',
+            'invoice_id' => 'nullable|string',
             'payment_response' => 'nullable|string',
         ]);
 
         $customer = Auth::guard('customers')->user();
+        $paymentSource = $request->payment_source ?? 'sdk';
 
         $address = CustomerAddress::where('id', $request->customer_address_id)
             ->where('customer_id', $customer->id)
@@ -221,45 +227,123 @@ class ServiceController extends Controller
             ], 400);
         }
 
+        // ── Calculate authoritative SAR amount server-side ────────────────────
+        $serviceProviderPrice = $service->service_provider_price;
+        $salePrice = $service->sale_price;
+        $profitAmount = $service->profit_amount;
+        $discountPercentage = 0;
+        $discountAmount = 0;
+        $couponId = null;
+        $couponCode = null;
+
+        if ($request->coupon_code) {
+            $coupon = Coupon::where('code', $request->coupon_code)
+                ->where('status', true)
+                ->where('expiry_date', '>', now())
+                ->whereIn('type', ['service', 'both_products_and_services'])
+                ->first();
+
+            if (! $coupon) {
+                return response()->json([
+                    'success' => false,
+                    'message' => __('responses.Invalid or expired coupon code'),
+                ], 400);
+            }
+
+            $couponId = $coupon->id;
+            $couponCode = $coupon->code;
+            $discountPercentage = $coupon->discount_percentage;
+            $discountAmount = ($salePrice * $discountPercentage) / 100;
+        }
+
+        $serviceProviderPriceAfterDiscount = $serviceProviderPrice - (($serviceProviderPrice * $discountPercentage) / 100);
+        $salePriceAfterDiscount = round($salePrice - $discountAmount, 2);
+        $profitAmountAfterDiscount = $salePriceAfterDiscount - $serviceProviderPriceAfterDiscount;
+
+        // ── Resolve invoice_id ────────────────────────────────────────────────
+        $invoiceId = $request->invoice_id
+            ?? MyFatoorahService::extractInvoiceIdFromResponse($request->payment_response);
+
+        // ── Web step 1: no invoice yet → create MF invoice, return payment URL ─
+        if ($paymentSource === 'web' && ! $invoiceId) {
+            try {
+                $myfatoorah = app(MyFatoorahService::class);
+                $callbackBase = config('app.url').'/api/v1/myfatoorah';
+
+                $mfResponse = $myfatoorah->executePayment([
+                    'PaymentMethodId' => null,
+                    'CustomerName' => $customer->name,
+                    'DisplayCurrencyIso' => 'SAR',
+                    'MobileCountryCode' => '+966',
+                    'CustomerMobile' => $customer->phone,
+                    'CustomerEmail' => $customer->email ?? 'noreply@fillo.app',
+                    'InvoiceValue' => $salePriceAfterDiscount,
+                    'CallBackUrl' => $callbackBase.'/callback',
+                    'ErrorUrl' => $callbackBase.'/error',
+                    'Language' => app()->getLocale() === 'ar' ? 'AR' : 'EN',
+                    'CustomerReference' => 'booking-customer-'.$customer->id,
+                    'CustomerCivilId' => $customer->national_address_short_number ?? '',
+                    'UserDefinedField' => 'type:booking',
+                    'InvoiceItems' => [[
+                        'ItemName' => $service->en_name ?? $service->ar_name,
+                        'Quantity' => 1,
+                        'UnitPrice' => $salePriceAfterDiscount,
+                    ]],
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => __('responses.Payment URL created successfully'),
+                    'data' => [
+                        'step' => 'payment_url',
+                        'invoice_id' => (string) ($mfResponse['Data']['InvoiceId'] ?? ''),
+                        'payment_url' => $mfResponse['Data']['PaymentURL'] ?? '',
+                        'amount' => $salePriceAfterDiscount,
+                        'currency' => 'SAR',
+                    ],
+                ], 200);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+        }
+
+        // ── SDK or Web step 2: invoice_id required ────────────────────────────
+        if (! $invoiceId) {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.Invoice ID is required for payment verification'),
+            ], 422);
+        }
+
+        $orderDateTime = Carbon::parse($request->order_date.' '.$request->order_time);
+
         DB::beginTransaction();
 
         try {
-            $serviceProviderPrice = $service->service_provider_price;
-            $salePrice = $service->sale_price;
-            $profitAmount = $service->profit_amount;
+            // Pessimistic lock: prevents two simultaneous requests for the same invoice
+            // from both creating a booking (race condition guard)
+            $existingPayment = Payment::where('invoice_id', $invoiceId)
+                ->lockForUpdate()
+                ->first();
 
-            $discountPercentage = 0;
-            $discountAmount = 0;
-            $couponId = null;
-            $couponCode = null;
+            if ($existingPayment && $existingPayment->booking_id) {
+                DB::commit();
 
-            if ($request->coupon_code) {
-                $coupon = Coupon::where('code', $request->coupon_code)
-                    ->where('status', true)
-                    ->where('expiry_date', '>', now())
-                    ->whereIn('type', ['service', 'both_products_and_services'])
-                    ->first();
-
-                if (! $coupon) {
-                    DB::rollBack();
-
-                    return response()->json([
-                        'success' => false,
-                        'message' => __('responses.Invalid or expired coupon code'),
-                    ], 400);
-                }
-
-                $couponId = $coupon->id;
-                $couponCode = $coupon->code;
-                $discountPercentage = $coupon->discount_percentage;
-                $discountAmount = ($salePrice * $discountPercentage) / 100;
+                return response()->json([
+                    'success' => true,
+                    'message' => __('responses.Booking paid successfully'),
+                    'data' => [
+                        'booking' => $existingPayment->booking->fresh(),
+                        'payment' => $existingPayment,
+                    ],
+                ], 200);
             }
 
-            $serviceProviderPriceAfterDiscount = $serviceProviderPrice - (($serviceProviderPrice * $discountPercentage) / 100);
-            $salePriceAfterDiscount = $salePrice - $discountAmount;
-            $profitAmountAfterDiscount = $salePriceAfterDiscount - $serviceProviderPriceAfterDiscount;
-
-            $orderDateTime = Carbon::parse($request->order_date.' '.$request->order_time);
+            // ── Server-side payment verification ─────────────────────────────
+            $verified = app(MyFatoorahService::class)->verifyPayment($invoiceId, $salePriceAfterDiscount);
 
             $booking = Booking::create([
                 'service_id' => $service->id,
@@ -282,15 +366,15 @@ class ServiceController extends Controller
 
             $payment = Payment::create([
                 'booking_id' => $booking->id,
-                'payment_method' => $request->payment_method,
-                'transaction_id' => $request->transaction_id,
+                'payment_method' => $verified['payment_gateway'] ?? $request->payment_method,
+                'payment_source' => $paymentSource,
+                'transaction_id' => $verified['transaction_id'] ?? $request->transaction_id,
+                'invoice_id' => $verified['invoice_id'],
                 'amount' => $salePriceAfterDiscount,
                 'currency' => 'SAR',
                 'status' => 'completed',
                 'payment_response' => $request->payment_response,
             ]);
-
-            $booking->update(['order_status' => 'pending']);
 
             DB::commit();
 
@@ -307,8 +391,7 @@ class ServiceController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => __('responses.error happened'),
-                'details' => 'Failed to pay booking: '.$e->getMessage(),
+                'message' => $e->getMessage(),
             ], 400);
         }
     }
@@ -363,13 +446,50 @@ class ServiceController extends Controller
             ], 400);
         }
 
-        $booking->update(['order_status' => 'cancelled']);
+        DB::beginTransaction();
 
-        return response()->json([
-            'success' => true,
-            'message' => __('responses.Booking cancelled successfully'),
-            'data' => $booking->fresh(),
-        ], 200);
+        try {
+            $booking->update(['order_status' => 'cancelled']);
+
+            // Attempt MyFatoorah refund if a completed payment exists
+            $payment = $booking->payment;
+            if ($payment && $payment->status === 'completed' && $payment->invoice_id) {
+                try {
+                    $myfatoorah = app(MyFatoorahService::class);
+                    $myfatoorah->makeRefund(
+                        $payment->transaction_id ?? $payment->invoice_id,
+                        $payment->amount,
+                        'Customer cancelled booking #'.$booking->id
+                    );
+                    $payment->update([
+                        'status' => 'refunded',
+                        'refunded_amount' => $payment->amount,
+                    ]);
+                } catch (\Exception $refundEx) {
+                    // Log and continue — admin can handle manually via dashboard
+                    Log::error('MyFatoorah refund failed on booking cancel', [
+                        'booking_id' => $booking->id,
+                        'payment_id' => $payment->id,
+                        'error' => $refundEx->getMessage(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => __('responses.Booking cancelled successfully'),
+                'data' => $booking->fresh(),
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.error happened'),
+            ], 400);
+        }
     }
 
     public function rateService(Request $request, $booking_id)

@@ -5,10 +5,13 @@ namespace App\Http\Controllers\api\v1\admin;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendNotificationJob;
 use App\Models\Booking;
+use App\Models\Payment;
 use App\Notifications\admins\BookingConfirmedNotification;
+use App\Services\MyFatoorahService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BookingController extends Controller
 {
@@ -182,12 +185,39 @@ class BookingController extends Controller
             $booking->update([
                 'order_status' => 'cancelled',
             ]);
+
+            // Refund via MyFatoorah if the booking has a completed payment
+            $payment = $booking->payment;
+            if ($payment && $payment->status === 'completed') {
+                $paymentId = $payment->transaction_id ?? $payment->invoice_id;
+                if ($paymentId) {
+                    try {
+                        $myfatoorah = app(MyFatoorahService::class);
+                        $myfatoorah->makeRefund(
+                            $paymentId,
+                            $payment->amount,
+                            'Booking #'.$booking->id.' cancelled by admin'
+                        );
+                    } catch (\Exception $refundEx) {
+                        Log::error('MyFatoorah refund failed on admin booking cancel', [
+                            'booking_id' => $booking->id,
+                            'payment_id' => $payment->id,
+                            'error' => $refundEx->getMessage(),
+                        ]);
+                    }
+                }
+                $payment->update([
+                    'status' => 'refunded',
+                    'refunded_amount' => $payment->amount,
+                ]);
+            }
+
             DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => __('responses.booking cancelled successfully'),
-                'booking' => $booking,
+                'booking' => $booking->fresh(),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

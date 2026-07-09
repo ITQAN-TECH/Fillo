@@ -11,7 +11,9 @@ class Payment extends Model
         'booking_id',
         'order_id',
         'payment_method',
+        'payment_source',
         'transaction_id',
+        'invoice_id',
         'amount',
         'refunded_amount',
         'currency',
@@ -23,6 +25,7 @@ class Payment extends Model
         'amount' => 'float',
         'refunded_amount' => 'float',
         'status' => 'string',
+        'payment_source' => 'string',
     ];
 
     protected $with = [
