@@ -4,7 +4,7 @@ namespace App\Http\Controllers\api\v1\customers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Services\MyFatoorahService;
+use App\services\MyFatoorahService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 

@@ -14,7 +14,7 @@ use App\Notifications\customers\OrderDeliveredNotification;
 use App\Notifications\customers\OrderRefundedNotification;
 use App\Notifications\customers\OrderRejectedNotification;
 use App\Notifications\customers\OrderShippedNotification;
-use App\Services\MyFatoorahService;
+use App\services\MyFatoorahService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

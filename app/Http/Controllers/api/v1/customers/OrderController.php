@@ -12,7 +12,7 @@ use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\Rate;
 use App\Models\Setting;
-use App\Services\MyFatoorahService;
+use App\services\MyFatoorahService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

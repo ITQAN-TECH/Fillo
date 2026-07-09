@@ -7,7 +7,7 @@ use App\Jobs\SendNotificationJob;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Notifications\admins\BookingConfirmedNotification;
-use App\Services\MyFatoorahService;
+use App\services\MyFatoorahService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

@@ -9,7 +9,7 @@ use App\Models\CustomerAddress;
 use App\Models\Payment;
 use App\Models\Rate;
 use App\Models\Service;
-use App\Services\MyFatoorahService;
+use App\services\MyFatoorahService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
