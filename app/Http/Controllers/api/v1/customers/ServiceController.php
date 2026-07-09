@@ -181,22 +181,34 @@ class ServiceController extends Controller
 
     public function payBooking(Request $request)
     {
+        /**
+         * Create a booking and open a MyFatoorah invoice in one shot.
+         *
+         * Flow:
+         *   1. Validate service, address, city coverage, date/time, coupon.
+         *   2. Calculate final amount server-side.
+         *   3. Create Booking (pending) inside a transaction.
+         *   4. Create the MF invoice via ExecutePayment.
+         *   5. Create a pending Payment record with the invoice_id.
+         *   6. Return { booking, payment: { invoice_id, payment_url, amount } }.
+         *
+         * The app then:
+         *   - SDK  → passes payment_url to the MF native payment sheet.
+         *   - Web  → opens payment_url in a WebView.
+         *
+         * The webhook (POST /v1/myfatoorah/webhook) handles the rest:
+         *   paid    → update payment to completed (booking stays pending for admin).
+         *   failed  → cancel booking, update payment to failed.
+         */
         $request->validate([
             'service_id' => 'required|exists:services,id',
             'customer_address_id' => 'required|exists:customer_addresses,id',
             'order_date' => 'required|date|after_or_equal:today',
             'order_time' => 'required|date_format:H:i',
             'coupon_code' => 'nullable|string|exists:coupons,code',
-            'payment_source' => 'nullable|in:sdk,web',
-            // Required only when confirming payment (step 2 / SDK)
-            'payment_method' => 'nullable|string',
-            'transaction_id' => 'nullable|string',
-            'invoice_id' => 'nullable|string',
-            'payment_response' => 'nullable|string',
         ]);
 
         $customer = Auth::guard('customers')->user();
-        $paymentSource = $request->payment_source ?? 'sdk';
 
         $address = CustomerAddress::where('id', $request->customer_address_id)
             ->where('customer_id', $customer->id)
@@ -227,7 +239,7 @@ class ServiceController extends Controller
             ], 400);
         }
 
-        // ── Calculate authoritative SAR amount server-side ────────────────────
+        // ── Server-side amount calculation ────────────────────────────────────
         $serviceProviderPrice = $service->service_provider_price;
         $salePrice = $service->sale_price;
         $profitAmount = $service->profit_amount;
@@ -260,91 +272,12 @@ class ServiceController extends Controller
         $salePriceAfterDiscount = round($salePrice - $discountAmount, 2);
         $profitAmountAfterDiscount = $salePriceAfterDiscount - $serviceProviderPriceAfterDiscount;
 
-        // ── Resolve invoice_id ────────────────────────────────────────────────
-        $invoiceId = $request->invoice_id
-            ?? MyFatoorahService::extractInvoiceIdFromResponse($request->payment_response);
-
-        // ── Web step 1: no invoice yet → create MF invoice, return payment URL ─
-        if ($paymentSource === 'web' && ! $invoiceId) {
-            try {
-                $myfatoorah = app(MyFatoorahService::class);
-                $callbackBase = config('app.url').'/api/v1/myfatoorah';
-
-                $mfResponse = $myfatoorah->executePayment([
-                    'PaymentMethodId' => null,
-                    'CustomerName' => $customer->name,
-                    'DisplayCurrencyIso' => 'SAR',
-                    'MobileCountryCode' => '+966',
-                    'CustomerMobile' => $customer->phone,
-                    'CustomerEmail' => $customer->email ?? 'noreply@fillo.app',
-                    'InvoiceValue' => $salePriceAfterDiscount,
-                    'CallBackUrl' => $callbackBase.'/callback',
-                    'ErrorUrl' => $callbackBase.'/error',
-                    'Language' => app()->getLocale() === 'ar' ? 'AR' : 'EN',
-                    'CustomerReference' => 'booking-customer-'.$customer->id,
-                    'CustomerCivilId' => $customer->national_address_short_number ?? '',
-                    'UserDefinedField' => 'type:booking',
-                    'InvoiceItems' => [[
-                        'ItemName' => $service->en_name ?? $service->ar_name,
-                        'Quantity' => 1,
-                        'UnitPrice' => $salePriceAfterDiscount,
-                    ]],
-                ]);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => __('responses.Payment URL created successfully'),
-                    'data' => [
-                        'step' => 'payment_url',
-                        'invoice_id' => (string) ($mfResponse['Data']['InvoiceId'] ?? ''),
-                        'payment_url' => $mfResponse['Data']['PaymentURL'] ?? '',
-                        'amount' => $salePriceAfterDiscount,
-                        'currency' => 'SAR',
-                    ],
-                ], 200);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $e->getMessage(),
-                ], 422);
-            }
-        }
-
-        // ── SDK or Web step 2: invoice_id required ────────────────────────────
-        if (! $invoiceId) {
-            return response()->json([
-                'success' => false,
-                'message' => __('responses.Invoice ID is required for payment verification'),
-            ], 422);
-        }
-
         $orderDateTime = Carbon::parse($request->order_date.' '.$request->order_time);
 
-        DB::beginTransaction();
-
         try {
-            // Pessimistic lock: prevents two simultaneous requests for the same invoice
-            // from both creating a booking (race condition guard)
-            $existingPayment = Payment::where('invoice_id', $invoiceId)
-                ->lockForUpdate()
-                ->first();
+            DB::beginTransaction();
 
-            if ($existingPayment && $existingPayment->booking_id) {
-                DB::commit();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => __('responses.Booking paid successfully'),
-                    'data' => [
-                        'booking' => $existingPayment->booking->fresh(),
-                        'payment' => $existingPayment,
-                    ],
-                ], 200);
-            }
-
-            // ── Server-side payment verification ─────────────────────────────
-            $verified = app(MyFatoorahService::class)->verifyPayment($invoiceId, $salePriceAfterDiscount);
-
+            // ── Create booking ────────────────────────────────────────────────
             $booking = Booking::create([
                 'service_id' => $service->id,
                 'customer_id' => $customer->id,
@@ -364,26 +297,55 @@ class ServiceController extends Controller
                 'order_status' => 'pending',
             ]);
 
-            $payment = Payment::create([
+            // ── Create MyFatoorah invoice ─────────────────────────────────────
+            $callbackBase = config('app.url').'/api/v1/myfatoorah';
+
+            $mfResponse = app(MyFatoorahService::class)->executePayment([
+                'PaymentMethodId' => null,
+                'CustomerName' => $customer->name,
+                'DisplayCurrencyIso' => 'SAR',
+                'MobileCountryCode' => '+966',
+                'CustomerMobile' => $customer->phone,
+                'CustomerEmail' => $customer->email ?? 'noreply@fillo.app',
+                'InvoiceValue' => $salePriceAfterDiscount,
+                'CallBackUrl' => $callbackBase.'/callback',
+                'ErrorUrl' => $callbackBase.'/error',
+                'Language' => app()->getLocale() === 'ar' ? 'AR' : 'EN',
+                'CustomerReference' => 'booking-'.$booking->id,
+                'CustomerCivilId' => $customer->national_address_short_number ?? '',
+                'UserDefinedField' => 'booking_id:'.$booking->id,
+                'InvoiceItems' => [[
+                    'ItemName' => $service->en_name ?? $service->ar_name,
+                    'Quantity' => 1,
+                    'UnitPrice' => $salePriceAfterDiscount,
+                ]],
+            ]);
+
+            $invoiceId = (string) ($mfResponse['Data']['InvoiceId'] ?? '');
+            $paymentUrl = $mfResponse['Data']['PaymentURL'] ?? '';
+
+            // ── Create pending payment record ─────────────────────────────────
+            Payment::create([
                 'booking_id' => $booking->id,
-                'payment_method' => $verified['payment_gateway'] ?? $request->payment_method,
-                'payment_source' => $paymentSource,
-                'transaction_id' => $verified['transaction_id'] ?? $request->transaction_id,
-                'invoice_id' => $verified['invoice_id'],
+                'invoice_id' => $invoiceId,
                 'amount' => $salePriceAfterDiscount,
                 'currency' => 'SAR',
-                'status' => 'completed',
-                'payment_response' => $request->payment_response,
+                'status' => 'pending',
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => __('responses.Booking paid successfully'),
+                'message' => __('responses.Booking created successfully. Proceed to payment.'),
                 'data' => [
                     'booking' => $booking->fresh(),
-                    'payment' => $payment,
+                    'payment' => [
+                        'invoice_id' => $invoiceId,
+                        'payment_url' => $paymentUrl,
+                        'amount' => $salePriceAfterDiscount,
+                        'currency' => 'SAR',
+                    ],
                 ],
             ], 201);
         } catch (\Exception $e) {

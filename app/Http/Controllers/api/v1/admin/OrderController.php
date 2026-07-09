@@ -111,6 +111,14 @@ class OrderController extends Controller
             ], 400);
         }
 
+        $payment = Payment::where('order_id', $order->id)->first();
+        if (! $payment || $payment->status !== 'completed') {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.order payment is not completed yet'),
+            ], 400);
+        }
+
         try {
             DB::beginTransaction();
 

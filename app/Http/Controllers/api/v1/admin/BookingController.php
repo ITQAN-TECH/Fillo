@@ -98,6 +98,14 @@ class BookingController extends Controller
                 'message' => __('responses.booking is not pending'),
             ], 400);
         }
+
+        $payment = $booking->payment;
+        if (! $payment || $payment->status !== 'completed') {
+            return response()->json([
+                'success' => false,
+                'message' => __('responses.booking payment is not completed yet'),
+            ], 400);
+        }
         try {
             DB::beginTransaction();
             $booking->update([
