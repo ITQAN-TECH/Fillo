@@ -119,7 +119,11 @@ class PaymentController extends Controller
 
         $invoiceData = $mfStatus['Data'] ?? [];
         $invoiceStatus = $invoiceData['InvoiceStatus'] ?? '';
-        $invoiceValue = (float) ($invoiceData['InvoiceValue'] ?? 0);
+        // "InvoiceValue" is in the account's BASE currency (e.g. KWD on a
+        // Kuwait-provisioned test account), not the SAR we display to
+        // customers. "InvoiceDisplayValue" is the SAR-denominated amount —
+        // that's what must match our server-calculated Payment amount.
+        $invoiceValue = (float) ($invoiceData['InvoiceDisplayValue'] ?? $invoiceData['InvoiceValue'] ?? 0);
 
         // Extract transaction details from the successful transaction row
         $transactions = collect($invoiceData['InvoiceTransactions'] ?? []);

@@ -85,7 +85,11 @@ class MyFatoorahService
             throw new \Exception(__('responses.Payment is not completed'));
         }
 
-        $invoiceValue = (float) ($data['InvoiceValue'] ?? 0);
+        // IMPORTANT: "InvoiceValue" is in the MERCHANT ACCOUNT's base currency
+        // (e.g. KWD for a Kuwait-provisioned account), NOT the currency we
+        // asked to display (DisplayCurrencyIso=SAR everywhere in this app).
+        // "InvoiceDisplayValue" is the one actually denominated in SAR.
+        $invoiceValue = (float) ($data['InvoiceDisplayValue'] ?? $data['InvoiceValue'] ?? 0);
         if (abs($invoiceValue - $expectedAmount) > 0.01) {
             Log::warning('MyFatoorah amount mismatch', [
                 'invoice_id' => $invoiceId,
