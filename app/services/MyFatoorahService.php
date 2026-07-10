@@ -32,20 +32,23 @@ class MyFatoorahService
     }
 
     /**
-     * Fetch raw payment status from MyFatoorah by InvoiceId.
+     * Fetch raw payment status from MyFatoorah by InvoiceId (default) or PaymentId.
+     * The CallBackUrl/ErrorUrl query param MF redirects with is a PaymentId, NOT
+     * an InvoiceId — callers must pass $keyType = 'PaymentId' in that case.
      * Throws on HTTP failure or when IsSuccess = false.
      */
-    public function getPaymentStatus(string $invoiceId): array
+    public function getPaymentStatus(string $key, string $keyType = 'InvoiceId'): array
     {
         $response = Http::withHeaders($this->headers())
             ->post("{$this->baseUrl}/v2/GetPaymentStatus", [
-                'Key' => $invoiceId,
-                'KeyType' => 'InvoiceId',
+                'Key' => $key,
+                'KeyType' => $keyType,
             ]);
 
         if (! $response->successful()) {
             Log::error('MyFatoorah GetPaymentStatus HTTP error', [
-                'invoice_id' => $invoiceId,
+                'key' => $key,
+                'key_type' => $keyType,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
@@ -56,7 +59,8 @@ class MyFatoorahService
 
         if (! ($body['IsSuccess'] ?? false)) {
             Log::warning('MyFatoorah GetPaymentStatus returned IsSuccess=false', [
-                'invoice_id' => $invoiceId,
+                'key' => $key,
+                'key_type' => $keyType,
                 'message' => $body['Message'] ?? '',
             ]);
             throw new \Exception($body['Message'] ?? __('responses.Payment verification failed'));

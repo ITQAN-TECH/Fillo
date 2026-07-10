@@ -32,7 +32,8 @@ class PaymentController extends Controller
         }
 
         try {
-            $status = app(MyFatoorahService::class)->getPaymentStatus($paymentId);
+            // MF's CallBackUrl query param is a PaymentId (transaction id), not an InvoiceId.
+            $status = app(MyFatoorahService::class)->getPaymentStatus($paymentId, 'PaymentId');
             $invoiceId = (string) ($status['Data']['InvoiceId'] ?? $paymentId);
             $invoiceStatus = strtolower($status['Data']['InvoiceStatus'] ?? 'unknown');
         } catch (\Exception $e) {
@@ -88,9 +89,18 @@ class PaymentController extends Controller
         $payload = $request->all();
         Log::info('MyFatoorah webhook received', ['payload' => $payload]);
 
-        $invoiceId = (string) ($payload['InvoiceId'] ?? $payload['Data']['InvoiceId'] ?? '');
+        // Webhook V2 nests it at Data.Invoice.Id. Older/flat shapes are kept
+        // as fallbacks in case the account is on Webhook V1 or a different event.
+        $invoiceId = (string) (
+            $payload['Data']['Invoice']['Id']
+            ?? $payload['InvoiceId']
+            ?? $payload['Data']['InvoiceId']
+            ?? ''
+        );
 
         if (! $invoiceId) {
+            Log::warning('MyFatoorah webhook: could not extract InvoiceId', ['payload' => $payload]);
+
             return response()->json(['success' => false, 'message' => 'Missing InvoiceId'], 400);
         }
 
