@@ -181,9 +181,9 @@ class MyFatoorahService
     }
 
     /**
-     * Format a phone number to the local Saudi format accepted by MF (max 11 chars).
-     * Works for any country's numbers, since customers may register with
-     * different country codes (e.g. 966500000000, 963937762825, ...).
+     * Split a raw phone number into MyFatoorah's expected MobileCountryCode +
+     * CustomerMobile fields. Works for any country's numbers, since customers
+     * may register with different country codes (e.g. 966500000000, 963937762825).
      *
      * @return array{country_code: string, mobile: string}
      */
@@ -198,8 +198,10 @@ class MyFatoorahService
             $raw = '+'.$raw;
         }
 
+        $util = \libphonenumber\PhoneNumberUtil::getInstance();
+
         try {
-            $util = \libphonenumber\PhoneNumberUtil::getInstance();
+            // Assumes the number already includes its country code (e.g. 966500000000)
             $parsed = $util->parse($raw, null);
 
             return [
@@ -207,9 +209,19 @@ class MyFatoorahService
                 'mobile' => substr((string) $parsed->getNationalNumber(), 0, 11),
             ];
         } catch (\Exception $e) {
-            Log::warning('Failed to parse phone number for MyFatoorah', ['phone' => $phone]);
+            // Fallback: no country code present, assume Saudi Arabia (app default)
+            try {
+                $parsed = $util->parse(ltrim($raw, '+'), 'SA');
 
-            return ['country_code' => '', 'mobile' => substr(ltrim($raw, '+'), 0, 11)];
+                return [
+                    'country_code' => (string) $parsed->getCountryCode(),
+                    'mobile' => substr((string) $parsed->getNationalNumber(), 0, 11),
+                ];
+            } catch (\Exception $e2) {
+                Log::warning('Failed to parse phone number for MyFatoorah', ['phone' => $phone]);
+
+                return ['country_code' => '', 'mobile' => substr(ltrim($raw, '+'), 0, 11)];
+            }
         }
     }
 

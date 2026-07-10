@@ -114,14 +114,14 @@ class OrderController extends Controller
 
             if ($coupon) {
                 $discountPercentage = $coupon->discount_percentage;
-                $discountAmount = ($subtotalPrice * $discountPercentage) / 100;
+                $discountAmount = round(($subtotalPrice * $discountPercentage) / 100, 2);
                 $couponId = $coupon->id;
                 $couponCode = $coupon->code;
             }
         }
 
-        $subtotalPriceAfterDiscount = $subtotalPrice - $discountAmount;
-        $shippingFee = Setting::first()?->shipping_fee ?? 0;
+        $subtotalPriceAfterDiscount = round($subtotalPrice - $discountAmount, 2);
+        $shippingFee = round(Setting::first()?->shipping_fee ?? 0, 2);
         $totalPrice = round($subtotalPriceAfterDiscount + $shippingFee, 2);
 
         try {
@@ -188,8 +188,19 @@ class OrderController extends Controller
             }
 
             // ── Create MyFatoorah invoice ─────────────────────────────────────
+            // MF requires InvoiceValue to exactly equal the sum of InvoiceItems
+            // (Quantity * UnitPrice), and rejects negative UnitPrice (no native
+            // "discount" line). Since our total already factors in discount +
+            // shipping, we send a single summary line so it always matches
+            // InvoiceValue exactly, regardless of rounding/discount/shipping.
             $callbackBase = config('app.url').'/api/v1/myfatoorah';
             $phone = MyFatoorahService::splitPhone($customer->phone);
+
+            $invoiceItems = [[
+                'ItemName' => 'Order '.$order->order_number,
+                'Quantity' => 1,
+                'UnitPrice' => $totalPrice,
+            ]];
 
             $mfResponse = app(MyFatoorahService::class)->executePayment([
                 'CustomerName' => $customer->name,
@@ -204,11 +215,7 @@ class OrderController extends Controller
                 'CustomerReference' => 'order-'.$order->id,
                 'CustomerCivilId' => $customer->national_address_short_number,
                 'UserDefinedField' => 'order_id:'.$order->id,
-                'InvoiceItems' => $cartItems->map(fn ($item) => [
-                    'ItemName' => $item->product?->en_name ?? 'Product',
-                    'Quantity' => $item->quantity,
-                    'UnitPrice' => round($item->price, 2),
-                ])->toArray(),
+                'InvoiceItems' => $invoiceItems,
             ]);
 
             $invoiceId = (string) ($mfResponse['Data']['InvoiceId'] ?? '');
