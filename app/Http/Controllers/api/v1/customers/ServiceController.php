@@ -77,108 +77,6 @@ class ServiceController extends Controller
         ], 200);
     }
 
-    public function initiateBooking(Request $request)
-    {
-        $request->validate([
-            'service_id' => 'required|exists:services,id',
-            'customer_address_id' => 'required|exists:customer_addresses,id',
-            'order_date' => 'required|date_format:Y-m-d|after_or_equal:today',
-            'order_time' => 'required|date_format:H:i',
-            'coupon_code' => 'nullable|string|exists:coupons,code',
-        ], [
-            'coupon_code' => __('responses.The coupon code is invalid or expired'),
-        ]);
-
-        $customer = Auth::guard('customers')->user();
-
-        $address = CustomerAddress::where('id', $request->customer_address_id)
-            ->where('customer_id', $customer->id)
-            ->first();
-
-        if (! $address) {
-            return response()->json([
-                'success' => false,
-                'message' => __('responses.Address not found or does not belong to you'),
-            ], 404);
-        }
-
-        $service = Service::with('serviceProvider.citiesOfWorking')->find($request->service_id);
-
-        if (! $service->status) {
-            return response()->json([
-                'success' => false,
-                'message' => __('responses.Service is not available'),
-            ], 400);
-        }
-
-        $serviceProviderCityIds = $service->serviceProvider->citiesOfWorking->pluck('id')->toArray();
-
-        if (! in_array($address->city_id, $serviceProviderCityIds)) {
-            return response()->json([
-                'success' => false,
-                'message' => __('responses.This service is not available in your area'),
-            ], 400);
-        }
-
-        $serviceProviderPrice = $service->service_provider_price;
-        $salePrice = $service->sale_price;
-        $profitAmount = $service->profit_amount;
-
-        $discountPercentage = 0;
-        $discountAmount = 0;
-        $couponId = null;
-        $couponCode = null;
-
-        if ($request->coupon_code) {
-            $coupon = Coupon::where('code', $request->coupon_code)
-                ->where('status', true)
-                ->where('expiry_date', '>', now())
-                ->whereIn('type', ['service', 'both_products_and_services'])
-                ->first();
-
-            if (! $coupon) {
-                return response()->json([
-                    'success' => false,
-                    'message' => __('responses.Invalid or expired coupon code'),
-                ], 400);
-            }
-
-            $couponId = $coupon->id;
-            $couponCode = $coupon->code;
-            $discountPercentage = $coupon->discount_percentage;
-            $discountAmount = ($salePrice * $discountPercentage) / 100;
-        }
-
-        $serviceProviderPriceAfterDiscount = $serviceProviderPrice - (($serviceProviderPrice * $discountPercentage) / 100);
-        $salePriceAfterDiscount = $salePrice - $discountAmount;
-        $profitAmountAfterDiscount = $salePriceAfterDiscount - $serviceProviderPriceAfterDiscount;
-
-        $orderDateTime = Carbon::parse($request->order_date.' '.$request->order_time);
-
-        return response()->json([
-            'success' => true,
-            'message' => __('responses.Booking details prepared. Proceed to payment.'),
-            'data' => [
-                'service_id' => $service->id,
-                'service_name' => $service->en_name,
-                'customer_address_id' => $address->id,
-                'address' => $address->full_address,
-                'order_date_time' => $orderDateTime->format('Y-m-d H:i:s'),
-                'service_provider_price' => $serviceProviderPrice,
-                'sale_price' => $salePrice,
-                'profit_amount' => $profitAmount,
-                'discount_percentage' => $discountPercentage,
-                'discount_amount' => $discountAmount,
-                'service_provider_price_after_discount' => $serviceProviderPriceAfterDiscount,
-                'sale_price_after_discount' => $salePriceAfterDiscount,
-                'profit_amount_after_discount' => $profitAmountAfterDiscount,
-                'final_price' => $salePriceAfterDiscount,
-                'coupon_id' => $couponId,
-                'coupon_code' => $couponCode,
-            ],
-        ], 200);
-    }
-
     public function payBooking(Request $request)
     {
         /**
@@ -455,13 +353,15 @@ class ServiceController extends Controller
         try {
             $booking->update(['order_status' => 'cancelled']);
 
-            // Attempt MyFatoorah refund if a completed payment exists
+            // Attempt MyFatoorah refund if a completed payment exists.
+            // MakeRefund requires MyFatoorah's PaymentId specifically — NOT
+            // transaction_id (a different, shorter MF reference).
             $payment = $booking->payment;
-            if ($payment && $payment->status === 'completed' && $payment->invoice_id) {
+            if ($payment && $payment->status === 'completed' && $payment->mf_payment_id) {
                 try {
                     $myfatoorah = app(MyFatoorahService::class);
                     $myfatoorah->makeRefund(
-                        $payment->transaction_id ?? $payment->invoice_id,
+                        $payment->mf_payment_id,
                         $payment->amount,
                         'Customer cancelled booking #'.$booking->id
                     );

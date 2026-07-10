@@ -81,7 +81,6 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
 
     // Service Booking Routes
     Route::post('services/calculate_price', [ServiceController::class, 'calculatePrice']);
-    Route::post('services/initiate_booking', [ServiceController::class, 'initiateBooking']);
     Route::post('services/pay_booking', [ServiceController::class, 'payBooking']);
     Route::get('bookings', [ServiceController::class, 'myBookings']);
     Route::get('bookings/{booking_id}', [ServiceController::class, 'bookingDetails']);

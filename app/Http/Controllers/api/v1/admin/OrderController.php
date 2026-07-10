@@ -526,16 +526,17 @@ class OrderController extends Controller
      */
     private function attemptMyFatoorahRefund(Payment $payment, float $amount, string $comment): void
     {
-        // Only refund if we have a PaymentId or InvoiceId to reference
-        $paymentId = $payment->transaction_id ?? $payment->invoice_id;
+        // MakeRefund requires MyFatoorah's PaymentId specifically — NOT
+        // transaction_id (a different, shorter MF reference) or invoice_id
+        // (refunding by invoice isn't supported by this endpoint at all).
+        $paymentId = $payment->mf_payment_id;
 
         if (! $paymentId) {
-            Log::warning('MyFatoorah refund skipped — no transaction_id or invoice_id', [
+            // Keep status as 'completed' (money was actually collected but not
+            // returned) so the discrepancy is visible — do NOT claim 'refunded'
+            // when no refund actually happened. Admin must refund manually.
+            Log::error('MyFatoorah refund skipped — no mf_payment_id on record, needs manual admin refund', [
                 'payment_id' => $payment->id,
-            ]);
-            $payment->update([
-                'status' => 'refunded',
-                'refunded_amount' => $amount,
             ]);
 
             return;
@@ -550,17 +551,13 @@ class OrderController extends Controller
                 'refunded_amount' => $amount,
             ]);
         } catch (\Exception $e) {
+            // Do NOT mark as 'refunded' — the money was not actually returned.
+            // Keep it 'completed' so admins can see the discrepancy and retry.
             Log::error('MyFatoorah refund failed — requires manual action', [
                 'payment_id' => $payment->id,
                 'mf_payment_id' => $paymentId,
                 'amount' => $amount,
                 'error' => $e->getMessage(),
-            ]);
-            // Mark as refunded in our DB so the order lifecycle proceeds;
-            // the failed MF refund is recorded in logs for admin follow-up.
-            $payment->update([
-                'status' => 'refunded',
-                'refunded_amount' => $amount,
             ]);
         }
     }

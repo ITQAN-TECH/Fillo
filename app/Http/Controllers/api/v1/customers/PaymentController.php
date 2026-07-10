@@ -194,6 +194,8 @@ class PaymentController extends Controller
                     'status' => 'completed',
                     'payment_method' => $successTx['PaymentGateway'] ?? null,
                     'transaction_id' => $successTx['TransactionId'] ?? null,
+                    // MakeRefund needs THIS (PaymentId), not TransactionId above.
+                    'mf_payment_id' => $successTx['PaymentId'] ?? null,
                 ]);
 
                 if ($payment->order_id && $payment->order) {

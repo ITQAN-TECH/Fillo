@@ -13,6 +13,7 @@ class Payment extends Model
         'payment_method',
         'payment_source',
         'transaction_id',
+        'mf_payment_id',
         'invoice_id',
         'amount',
         'refunded_amount',

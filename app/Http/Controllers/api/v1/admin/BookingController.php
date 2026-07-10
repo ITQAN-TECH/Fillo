@@ -194,10 +194,12 @@ class BookingController extends Controller
                 'order_status' => 'cancelled',
             ]);
 
-            // Refund via MyFatoorah if the booking has a completed payment
+            // Refund via MyFatoorah if the booking has a completed payment.
+            // MakeRefund requires MyFatoorah's PaymentId specifically — NOT
+            // transaction_id (a different, shorter MF reference).
             $payment = $booking->payment;
             if ($payment && $payment->status === 'completed') {
-                $paymentId = $payment->transaction_id ?? $payment->invoice_id;
+                $paymentId = $payment->mf_payment_id;
                 if ($paymentId) {
                     try {
                         $myfatoorah = app(MyFatoorahService::class);
@@ -206,18 +208,26 @@ class BookingController extends Controller
                             $payment->amount,
                             'Booking #'.$booking->id.' cancelled by admin'
                         );
+
+                        // Only mark 'refunded' once MyFatoorah actually confirms it —
+                        // otherwise the DB would claim money was returned when it wasn't.
+                        $payment->update([
+                            'status' => 'refunded',
+                            'refunded_amount' => $payment->amount,
+                        ]);
                     } catch (\Exception $refundEx) {
-                        Log::error('MyFatoorah refund failed on admin booking cancel', [
+                        Log::error('MyFatoorah refund failed on admin booking cancel — requires manual action', [
                             'booking_id' => $booking->id,
                             'payment_id' => $payment->id,
                             'error' => $refundEx->getMessage(),
                         ]);
                     }
+                } else {
+                    Log::error('MyFatoorah refund skipped — no mf_payment_id on record, needs manual admin refund', [
+                        'booking_id' => $booking->id,
+                        'payment_id' => $payment->id,
+                    ]);
                 }
-                $payment->update([
-                    'status' => 'refunded',
-                    'refunded_amount' => $payment->amount,
-                ]);
             }
 
             DB::commit();
