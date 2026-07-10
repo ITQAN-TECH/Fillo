@@ -14,6 +14,7 @@ class Payment extends Model
         'payment_source',
         'transaction_id',
         'mf_payment_id',
+        'mf_base_amount',
         'invoice_id',
         'amount',
         'refunded_amount',
@@ -25,6 +26,7 @@ class Payment extends Model
     protected $casts = [
         'amount' => 'float',
         'refunded_amount' => 'float',
+        'mf_base_amount' => 'float',
         'status' => 'string',
         'payment_source' => 'string',
     ];
@@ -42,6 +44,8 @@ class Payment extends Model
     protected $hidden = [
         'amount',
         'refunded_amount',
+        'mf_payment_id',
+        'mf_base_amount',
     ];
 
     public function booking()

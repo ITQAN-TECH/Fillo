@@ -256,10 +256,50 @@ class MyFatoorahService
     }
 
     /**
+     * Refund a completed Payment in full, using the correct amount and key.
+     *
+     * MakeRefund validates "Amount" against the invoice's value in the
+     * MERCHANT ACCOUNT's base currency (e.g. KWD on a Kuwait-provisioned
+     * account) — NOT the SAR amount we display/store in Payment::amount.
+     * Sending the SAR amount fails with "Maximum amount to be refunded is X".
+     *
+     * This is the single entry point every caller should use for refunds —
+     * do NOT call makeRefund() directly with $payment->amount.
+     *
+     * @throws \Exception if there's no PaymentId to refund against, or the
+     *                     refund request itself fails.
+     */
+    public function refundPayment(\App\Models\Payment $payment, string $comment): array
+    {
+        if (! $payment->mf_payment_id) {
+            throw new \Exception('No mf_payment_id on payment #'.$payment->id.' — cannot refund via MyFatoorah');
+        }
+
+        // Prefer the base-currency value captured at webhook-confirmation
+        // time; fall back to a live lookup for payments completed before
+        // that field existed.
+        $baseAmount = $payment->mf_base_amount ?? $this->fetchInvoiceBaseValue($payment->mf_payment_id);
+
+        return $this->makeRefund($payment->mf_payment_id, $baseAmount, $comment);
+    }
+
+    /**
+     * Look up the base-currency (account currency) value of an invoice by
+     * its PaymentId. Used as a fallback when mf_base_amount wasn't stored.
+     */
+    public function fetchInvoiceBaseValue(string $paymentId): float
+    {
+        $body = $this->getPaymentStatus($paymentId, 'PaymentId');
+
+        return (float) ($body['Data']['InvoiceValue'] ?? 0);
+    }
+
+    /**
      * Issue a refund via MyFatoorah MakeRefund API.
      *
      * @param  string  $paymentId  The PaymentId from the original transaction.
-     * @param  float  $amount  Amount in SAR to refund.
+     * @param  float  $amount  Amount in the merchant account's BASE currency
+     *                         to refund (see refundPayment() docblock) — NOT SAR.
      * @param  string  $comment  Reason shown in MyFatoorah dashboard.
      *
      * @throws \Exception on failure (caller should decide whether to rollback)

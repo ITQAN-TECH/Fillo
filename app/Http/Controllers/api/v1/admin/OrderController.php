@@ -523,15 +523,14 @@ class OrderController extends Controller
     /**
      * Attempt a MyFatoorah refund and update the payment record.
      * Errors are logged but do NOT bubble up — admin can retry manually.
+     *
+     * $amount is the SAR amount recorded in our own `refunded_amount`
+     * bookkeeping. The actual MyFatoorah API call uses the correct
+     * base-currency amount internally (see MyFatoorahService::refundPayment).
      */
     private function attemptMyFatoorahRefund(Payment $payment, float $amount, string $comment): void
     {
-        // MakeRefund requires MyFatoorah's PaymentId specifically — NOT
-        // transaction_id (a different, shorter MF reference) or invoice_id
-        // (refunding by invoice isn't supported by this endpoint at all).
-        $paymentId = $payment->mf_payment_id;
-
-        if (! $paymentId) {
+        if (! $payment->mf_payment_id) {
             // Keep status as 'completed' (money was actually collected but not
             // returned) so the discrepancy is visible — do NOT claim 'refunded'
             // when no refund actually happened. Admin must refund manually.
@@ -543,8 +542,7 @@ class OrderController extends Controller
         }
 
         try {
-            $myfatoorah = app(MyFatoorahService::class);
-            $myfatoorah->makeRefund($paymentId, $amount, $comment);
+            app(MyFatoorahService::class)->refundPayment($payment, $comment);
 
             $payment->update([
                 'status' => 'refunded',
@@ -555,7 +553,7 @@ class OrderController extends Controller
             // Keep it 'completed' so admins can see the discrepancy and retry.
             Log::error('MyFatoorah refund failed — requires manual action', [
                 'payment_id' => $payment->id,
-                'mf_payment_id' => $paymentId,
+                'mf_payment_id' => $payment->mf_payment_id,
                 'amount' => $amount,
                 'error' => $e->getMessage(),
             ]);

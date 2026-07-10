@@ -199,13 +199,10 @@ class BookingController extends Controller
             // transaction_id (a different, shorter MF reference).
             $payment = $booking->payment;
             if ($payment && $payment->status === 'completed') {
-                $paymentId = $payment->mf_payment_id;
-                if ($paymentId) {
+                if ($payment->mf_payment_id) {
                     try {
-                        $myfatoorah = app(MyFatoorahService::class);
-                        $myfatoorah->makeRefund(
-                            $paymentId,
-                            $payment->amount,
+                        app(MyFatoorahService::class)->refundPayment(
+                            $payment,
                             'Booking #'.$booking->id.' cancelled by admin'
                         );
 

@@ -196,6 +196,10 @@ class PaymentController extends Controller
                     'transaction_id' => $successTx['TransactionId'] ?? null,
                     // MakeRefund needs THIS (PaymentId), not TransactionId above.
                     'mf_payment_id' => $successTx['PaymentId'] ?? null,
+                    // Base-currency (account currency) value — the amount
+                    // MakeRefund actually validates against, not the SAR
+                    // amount in `amount`/InvoiceDisplayValue.
+                    'mf_base_amount' => $invoiceData['InvoiceValue'] ?? null,
                 ]);
 
                 if ($payment->order_id && $payment->order) {
@@ -220,7 +224,7 @@ class PaymentController extends Controller
                             'invoice_id' => $invoiceId,
                         ]);
 
-                        $this->refundAndCancelOrder($payment, $order, $successTx);
+                        $this->refundAndCancelOrder($payment, $order);
                         DB::commit();
 
                         return response()->json(['success' => true], 200);
@@ -348,23 +352,17 @@ class PaymentController extends Controller
      * window between checkout and payment confirmation (nothing was reserved
      * up front, by design). Refund automatically and cancel the order.
      */
-    private function refundAndCancelOrder(Payment $payment, Order $order, ?array $successTx): void
+    private function refundAndCancelOrder(Payment $payment, Order $order): void
     {
-        $paymentId = $successTx['PaymentId'] ?? null;
-
-        if ($paymentId) {
+        if ($payment->mf_payment_id) {
             try {
-                app(MyFatoorahService::class)->makeRefund(
-                    (string) $paymentId,
-                    (float) $payment->amount,
-                    'Out of stock - automatic refund'
-                );
+                app(MyFatoorahService::class)->refundPayment($payment, 'Out of stock - automatic refund');
 
                 $payment->update(['status' => 'refunded', 'refunded_amount' => $payment->amount]);
             } catch (\Exception $e) {
                 Log::error('MyFatoorah webhook: automatic refund failed — needs manual admin refund', [
                     'order_id' => $order->id,
-                    'payment_id' => $paymentId,
+                    'payment_id' => $payment->mf_payment_id,
                     'error' => $e->getMessage(),
                 ]);
 
@@ -372,7 +370,7 @@ class PaymentController extends Controller
                 $payment->update(['status' => 'completed']);
             }
         } else {
-            Log::error('MyFatoorah webhook: no PaymentId to refund — needs manual admin refund', [
+            Log::error('MyFatoorah webhook: no mf_payment_id to refund — needs manual admin refund', [
                 'order_id' => $order->id,
             ]);
             $payment->update(['status' => 'completed']);

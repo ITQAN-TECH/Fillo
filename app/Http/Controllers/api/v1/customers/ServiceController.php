@@ -359,10 +359,8 @@ class ServiceController extends Controller
             $payment = $booking->payment;
             if ($payment && $payment->status === 'completed' && $payment->mf_payment_id) {
                 try {
-                    $myfatoorah = app(MyFatoorahService::class);
-                    $myfatoorah->makeRefund(
-                        $payment->mf_payment_id,
-                        $payment->amount,
+                    app(MyFatoorahService::class)->refundPayment(
+                        $payment,
                         'Customer cancelled booking #'.$booking->id
                     );
                     $payment->update([
