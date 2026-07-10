@@ -89,6 +89,17 @@ class PaymentController extends Controller
         $payload = $request->all();
         Log::info('MyFatoorah webhook received', ['payload' => $payload]);
 
+        // MyFatoorah sends several event types on this same URL. Code 1 is
+        // PAYMENT_STATUS_CHANGED (handled below). Code 2 is
+        // REFUND_STATUS_CHANGED, which has a completely different payload
+        // shape (Data.Refund / Data.ReferencedInvoice, no Data.Invoice.Id) —
+        // it must be routed separately rather than falling into the
+        // InvoiceId extraction below, which would always fail for it.
+        $eventCode = $payload['Event']['Code'] ?? null;
+        if ($eventCode === 2) {
+            return $this->handleRefundStatusChanged($payload);
+        }
+
         // Webhook V2 nests it at Data.Invoice.Id. Older/flat shapes are kept
         // as fallbacks in case the account is on Webhook V1 or a different event.
         $invoiceId = (string) (
@@ -285,6 +296,69 @@ class PaymentController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('MyFatoorah webhook: DB error', [
+                'invoice_id' => $invoiceId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Internal error'], 500);
+        }
+
+        return response()->json(['success' => true], 200);
+    }
+
+    /**
+     * Handle MyFatoorah's REFUND_STATUS_CHANGED (Event.Code=2) webhook.
+     *
+     * Refunds we issue ourselves (admin panel / auto-refund on stock-out)
+     * already mark the Payment 'refunded' synchronously from the MakeRefund
+     * response — this webhook is best-effort reconciliation for refunds
+     * issued directly from the MyFatoorah merchant portal, bypassing our
+     * app entirely, so our DB doesn't silently drift out of sync.
+     *
+     * Always returns 200 (nothing here is worth MyFatoorah retrying).
+     */
+    private function handleRefundStatusChanged(array $payload): \Illuminate\Http\JsonResponse
+    {
+        $data = $payload['Data'] ?? [];
+        $status = $data['Refund']['Status'] ?? null;
+        // NOTE: Data.Refund.InvoiceId is NOT the original invoice — it's a
+        // different reference tied to the refund itself. The invoice that
+        // matches our stored Payment.invoice_id is Data.ReferencedInvoice.Id.
+        $invoiceId = (string) ($data['ReferencedInvoice']['Id'] ?? '');
+
+        if ($status !== 'REFUNDED' || ! $invoiceId) {
+            Log::info('MyFatoorah webhook: refund event ignored', ['status' => $status, 'invoice_id' => $invoiceId]);
+
+            return response()->json(['success' => true], 200);
+        }
+
+        DB::beginTransaction();
+        try {
+            $payment = Payment::where('invoice_id', $invoiceId)->lockForUpdate()->first();
+
+            if (! $payment) {
+                DB::commit();
+                Log::warning('MyFatoorah webhook: refund event — no matching payment found', ['invoice_id' => $invoiceId]);
+
+                return response()->json(['success' => true], 200);
+            }
+
+            if ($payment->status !== 'refunded') {
+                $payment->update([
+                    'status' => 'refunded',
+                    'refunded_amount' => $payment->refunded_amount > 0 ? $payment->refunded_amount : $payment->amount,
+                ]);
+
+                Log::info('MyFatoorah webhook: payment reconciled to refunded (likely refunded via MyFatoorah portal directly)', [
+                    'payment_id' => $payment->id,
+                    'invoice_id' => $invoiceId,
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('MyFatoorah webhook: refund event DB error', [
                 'invoice_id' => $invoiceId,
                 'error' => $e->getMessage(),
             ]);
