@@ -133,13 +133,30 @@ class MyFatoorahService
     /**
      * Create a hosted payment page (web/redirect flow).
      *
-     * @param  array  $payload  See MyFatoorah ExecutePayment docs for full schema.
-     *                          Required: InvoiceValue, CustomerName, CustomerMobile,
+     * MF rejects explicit null values for required fields, so we strip nulls
+     * from the payload before sending. PaymentMethodId is resolved automatically
+     * via InitiatePayment when not provided (or provided as null).
+     *
+     * @param  array  $payload  Required: InvoiceValue, CustomerName, CustomerMobile,
      *                          CustomerEmail, CallBackUrl, ErrorUrl.
-     *                          Pass PaymentMethodId = null to show all methods.
+     *                          Omit PaymentMethodId to use the first available method.
      */
     public function executePayment(array $payload): array
     {
+        // Resolve PaymentMethodId when not explicitly provided
+        if (! isset($payload['PaymentMethodId']) || $payload['PaymentMethodId'] === null) {
+            $methods = $this->initiatePayment(
+                (float) ($payload['InvoiceValue'] ?? 0),
+                $payload['DisplayCurrencyIso'] ?? 'SAR'
+            );
+            $firstMethod = collect($methods['Data']['PaymentMethods'] ?? [])
+                ->first(fn ($m) => ($m['IsDirectPayment'] ?? false) === false);
+            $payload['PaymentMethodId'] = $firstMethod['PaymentMethodId'] ?? null;
+        }
+
+        // Strip null values — MF rejects them even for optional fields
+        $payload = array_filter($payload, fn ($v) => $v !== null);
+
         $response = Http::withHeaders($this->headers())
             ->post("{$this->baseUrl}/v2/ExecutePayment", $payload);
 
@@ -153,11 +170,47 @@ class MyFatoorahService
 
         $body = $response->json();
         if (! ($body['IsSuccess'] ?? false)) {
-            Log::error('MyFatoorah ExecutePayment failed', ['message' => $body['Message'] ?? '']);
+            Log::error('MyFatoorah ExecutePayment failed', [
+                'message' => $body['Message'] ?? '',
+                'errors' => $body['ValidationErrors'] ?? [],
+            ]);
             throw new \Exception($body['Message'] ?? 'ExecutePayment failed');
         }
 
         return $body;
+    }
+
+    /**
+     * Format a phone number to the local Saudi format accepted by MF (max 11 chars).
+     * Works for any country's numbers, since customers may register with
+     * different country codes (e.g. 966500000000, 963937762825, ...).
+     *
+     * @return array{country_code: string, mobile: string}
+     */
+    public static function splitPhone(?string $phone): array
+    {
+        if (! $phone) {
+            return ['country_code' => '', 'mobile' => ''];
+        }
+
+        $raw = preg_replace('/[^0-9+]/', '', $phone);
+        if (! str_starts_with($raw, '+')) {
+            $raw = '+'.$raw;
+        }
+
+        try {
+            $util = \libphonenumber\PhoneNumberUtil::getInstance();
+            $parsed = $util->parse($raw, null);
+
+            return [
+                'country_code' => (string) $parsed->getCountryCode(),
+                'mobile' => substr((string) $parsed->getNationalNumber(), 0, 11),
+            ];
+        } catch (\Exception $e) {
+            Log::warning('Failed to parse phone number for MyFatoorah', ['phone' => $phone]);
+
+            return ['country_code' => '', 'mobile' => substr(ltrim($raw, '+'), 0, 11)];
+        }
     }
 
     /**

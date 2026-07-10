@@ -299,13 +299,13 @@ class ServiceController extends Controller
 
             // ── Create MyFatoorah invoice ─────────────────────────────────────
             $callbackBase = config('app.url').'/api/v1/myfatoorah';
+            $phone = MyFatoorahService::splitPhone($customer->phone);
 
             $mfResponse = app(MyFatoorahService::class)->executePayment([
-                'PaymentMethodId' => null,
                 'CustomerName' => $customer->name,
                 'DisplayCurrencyIso' => 'SAR',
-                'MobileCountryCode' => '+966',
-                'CustomerMobile' => $customer->phone,
+                'MobileCountryCode' => $phone['country_code'],
+                'CustomerMobile' => $phone['mobile'],
                 'CustomerEmail' => $customer->email ?? 'noreply@fillo.app',
                 'InvoiceValue' => $salePriceAfterDiscount,
                 'CallBackUrl' => $callbackBase.'/callback',
