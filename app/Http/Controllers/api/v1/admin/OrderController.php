@@ -42,20 +42,23 @@ class OrderController extends Controller
         })->when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
             $query->where(function ($query) use ($search) {
-                $query->where('order_number', 'like', '%'.$search.'%')
-                    ->orWhere('phone', 'like', '%'.$search.'%')
+                $query->where('order_number', 'like', '%' . $search . '%')
+                    ->orWhere('phone', 'like', '%' . $search . '%')
                     ->orWhereHas('customer', function ($query) use ($search) {
-                        $query->where('name', 'like', '%'.$search.'%')
-                            ->orWhere('email', 'like', '%'.$search.'%')
-                            ->orWhere('phone', 'like', '%'.$search.'%');
+                        $query->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%')
+                            ->orWhere('phone', 'like', '%' . $search . '%');
                     });
             });
         })
-        ->when($request->has('customer_id'), function ($query) use ($request) {
-            $query->where('customer_id', $request->customer_id);
-        })
-        ->latest()
-        ->paginate();
+            ->when($request->has('customer_id'), function ($query) use ($request) {
+                $query->where('customer_id', $request->customer_id);
+            })
+            ->whereHas('payment', function ($query) {
+                $query->where('status', '!=', 'pending');
+            })
+            ->latest()
+            ->paginate();
 
         $report = [];
         $report['orders_count'] = Order::count();
@@ -190,7 +193,7 @@ class OrderController extends Controller
                 $this->attemptMyFatoorahRefund(
                     $payment,
                     $order->total_price,
-                    'Order #'.$order->order_number.' rejected by admin'
+                    'Order #' . $order->order_number . ' rejected by admin'
                 );
             }
 
@@ -423,7 +426,7 @@ class OrderController extends Controller
                 $this->attemptMyFatoorahRefund(
                     $payment,
                     $refundAmount,
-                    'Order #'.$order->order_number.' cancelled — '.$request->cancellation_reason
+                    'Order #' . $order->order_number . ' cancelled — ' . $request->cancellation_reason
                 );
             }
 
@@ -490,7 +493,7 @@ class OrderController extends Controller
                 $this->attemptMyFatoorahRefund(
                     $payment,
                     $order->total_price,
-                    'Order #'.$order->order_number.' refunded by admin'
+                    'Order #' . $order->order_number . ' refunded by admin'
                 );
             }
 

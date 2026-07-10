@@ -627,4 +627,5 @@ return [
     'total cancelled bookings' => 'إجمالي حجوزات الخدمات الملغاة',
 
     'profile image deleted successfully' => 'تم حذف الصورة الشخصية بنجاح',
+    'Booking created successfully. Proceed to payment.' => 'تم إنشاء الحجز بنجاح. يرجى الدفع.',
 ];

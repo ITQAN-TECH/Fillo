@@ -639,5 +639,6 @@ return [
     'total cancelled bookings' => 'Total cancelled bookings',
 
     'profile image deleted successfully' => 'Profile image deleted successfully',
+    'Booking created successfully. Proceed to payment.' => 'Booking created successfully. Proceed to payment.',
 
 ];
