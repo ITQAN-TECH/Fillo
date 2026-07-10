@@ -182,23 +182,24 @@ class ServiceController extends Controller
     public function payBooking(Request $request)
     {
         /**
-         * Create a booking and open a MyFatoorah invoice in one shot.
+         * Create a booking and kick off a MyFatoorah payment.
          *
          * Flow:
          *   1. Validate service, address, city coverage, date/time, coupon.
          *   2. Calculate final amount server-side.
-         *   3. Create Booking (pending) inside a transaction.
-         *   4. Create the MF invoice via ExecutePayment.
-         *   5. Create a pending Payment record with the invoice_id.
-         *   6. Return { booking, payment: { invoice_id, payment_url, amount } }.
+         *   3. Create Booking as 'pending' inside a transaction.
+         *   4. payment_source=web → create a MyFatoorah "SendPayment" invoice
+         *      (shows ALL enabled payment methods) and return payment_url.
+         *      payment_source=sdk → no backend MyFatoorah call; the native
+         *      SDK talks to MyFatoorah directly on-device. We return the
+         *      amount + customer fields + the reference fields the app MUST
+         *      attach to its SDK call, so the webhook can match it back.
+         *   5. Create a pending Payment record (invoice_id set now for web,
+         *      or left null for sdk — the webhook fills it in on first callback).
          *
-         * The app then:
-         *   - SDK  → passes payment_url to the MF native payment sheet.
-         *   - Web  → opens payment_url in a WebView.
-         *
-         * The webhook (POST /v1/myfatoorah/webhook) handles the rest:
-         *   paid    → update payment to completed (booking stays pending for admin).
-         *   failed  → cancel booking, update payment to failed.
+         * The webhook (POST /v1/myfatoorah/webhook) is the single source of truth:
+         *   paid    → mark payment completed (booking stays pending for admin).
+         *   failed  → cancel booking, mark payment failed.
          */
         $request->validate([
             'service_id' => 'required|exists:services,id',
@@ -206,6 +207,7 @@ class ServiceController extends Controller
             'order_date' => 'required|date|after_or_equal:today',
             'order_time' => 'required|date_format:H:i',
             'coupon_code' => 'nullable|string|exists:coupons,code',
+            'payment_source' => 'required|in:web,sdk',
         ]);
 
         $customer = Auth::guard('customers')->user();
@@ -273,6 +275,7 @@ class ServiceController extends Controller
         $profitAmountAfterDiscount = $salePriceAfterDiscount - $serviceProviderPriceAfterDiscount;
 
         $orderDateTime = Carbon::parse($request->order_date.' '.$request->order_time);
+        $paymentSource = $request->payment_source;
 
         try {
             DB::beginTransaction();
@@ -297,12 +300,49 @@ class ServiceController extends Controller
                 'order_status' => 'pending',
             ]);
 
-            // ── Create MyFatoorah invoice ─────────────────────────────────────
-            $callbackBase = config('app.url').'/api/v1/myfatoorah';
             $phone = MyFatoorahService::splitPhone($customer->phone);
+            $customerReference = 'booking-'.$booking->id;
+            $userDefinedField = 'booking_id:'.$booking->id;
 
-            $mfResponse = app(MyFatoorahService::class)->executePayment([
+            // ── SDK flow: no backend MyFatoorah call ──────────────────────────
+            if ($paymentSource === 'sdk') {
+                Payment::create([
+                    'booking_id' => $booking->id,
+                    'invoice_id' => null,
+                    'amount' => $salePriceAfterDiscount,
+                    'currency' => 'SAR',
+                    'status' => 'pending',
+                    'payment_source' => 'sdk',
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => __('responses.Booking created successfully. Proceed to payment.'),
+                    'data' => [
+                        'booking' => $booking->fresh(),
+                        'payment' => [
+                            'payment_source' => 'sdk',
+                            'amount' => $salePriceAfterDiscount,
+                            'currency' => 'SAR',
+                            'customer_reference' => $customerReference,
+                            'user_defined_field' => $userDefinedField,
+                            'customer_name' => $customer->name,
+                            'customer_email' => $customer->email ?? 'noreply@fillo.app',
+                            'mobile_country_code' => $phone['country_code'],
+                            'customer_mobile' => $phone['mobile'],
+                        ],
+                    ],
+                ], 201);
+            }
+
+            // ── Web flow: create a hosted invoice showing ALL payment methods ──
+            $callbackBase = config('app.url').'/api/v1/myfatoorah';
+
+            $mfResponse = app(MyFatoorahService::class)->sendPayment([
                 'CustomerName' => $customer->name,
+                'NotificationOption' => 'LNK',
                 'DisplayCurrencyIso' => 'SAR',
                 'MobileCountryCode' => $phone['country_code'],
                 'CustomerMobile' => $phone['mobile'],
@@ -311,9 +351,9 @@ class ServiceController extends Controller
                 'CallBackUrl' => $callbackBase.'/callback',
                 'ErrorUrl' => $callbackBase.'/error',
                 'Language' => app()->getLocale() === 'ar' ? 'AR' : 'EN',
-                'CustomerReference' => 'booking-'.$booking->id,
+                'CustomerReference' => $customerReference,
                 'CustomerCivilId' => $customer->national_address_short_number ?? '',
-                'UserDefinedField' => 'booking_id:'.$booking->id,
+                'UserDefinedField' => $userDefinedField,
                 'InvoiceItems' => [[
                     'ItemName' => $service->en_name ?? $service->ar_name,
                     'Quantity' => 1,
@@ -322,7 +362,7 @@ class ServiceController extends Controller
             ]);
 
             $invoiceId = (string) ($mfResponse['Data']['InvoiceId'] ?? '');
-            $paymentUrl = $mfResponse['Data']['PaymentURL'] ?? '';
+            $paymentUrl = $mfResponse['Data']['InvoiceURL'] ?? '';
 
             // ── Create pending payment record ─────────────────────────────────
             Payment::create([
@@ -331,6 +371,7 @@ class ServiceController extends Controller
                 'amount' => $salePriceAfterDiscount,
                 'currency' => 'SAR',
                 'status' => 'pending',
+                'payment_source' => 'web',
             ]);
 
             DB::commit();
@@ -341,6 +382,7 @@ class ServiceController extends Controller
                 'data' => [
                     'booking' => $booking->fresh(),
                     'payment' => [
+                        'payment_source' => 'web',
                         'invoice_id' => $invoiceId,
                         'payment_url' => $paymentUrl,
                         'amount' => $salePriceAfterDiscount,

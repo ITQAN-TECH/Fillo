@@ -131,30 +131,52 @@ class MyFatoorahService
     }
 
     /**
-     * Create a hosted payment page (web/redirect flow).
+     * Create a hosted "Invoice Link" page (web/browser flow) that shows ALL
+     * payment methods enabled on the account and lets the customer pick one —
+     * unlike ExecutePayment, no PaymentMethodId is required or forced.
      *
-     * MF rejects explicit null values for required fields, so we strip nulls
-     * from the payload before sending. PaymentMethodId is resolved automatically
-     * via InitiatePayment when not provided (or provided as null).
+     * @param  array  $payload  Required: InvoiceValue, CustomerName.
+     *                          Common optional: CustomerMobile, CustomerEmail,
+     *                          CallBackUrl, ErrorUrl, InvoiceItems, etc.
+     */
+    public function sendPayment(array $payload): array
+    {
+        $payload = array_filter($payload, fn ($v) => $v !== null);
+        $payload['NotificationOption'] = $payload['NotificationOption'] ?? 'LNK';
+
+        $response = Http::withHeaders($this->headers())
+            ->post("{$this->baseUrl}/v2/SendPayment", $payload);
+
+        if (! $response->successful()) {
+            Log::error('MyFatoorah SendPayment HTTP error', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new \Exception('Failed to create payment URL: '.$response->body());
+        }
+
+        $body = $response->json();
+        if (! ($body['IsSuccess'] ?? false)) {
+            Log::error('MyFatoorah SendPayment failed', [
+                'message' => $body['Message'] ?? '',
+                'errors' => $body['ValidationErrors'] ?? [],
+            ]);
+            throw new \Exception($body['Message'] ?? 'SendPayment failed');
+        }
+
+        return $body;
+    }
+
+    /**
+     * Create a payment against a SPECIFIC payment method (direct charge).
+     * Only used when a PaymentMethodId (or SessionId for embedded card) is
+     * already known — e.g. an admin-initiated manual charge. NOT used for the
+     * customer-facing web flow (see sendPayment) since it forces one method.
      *
-     * @param  array  $payload  Required: InvoiceValue, CustomerName, CustomerMobile,
-     *                          CustomerEmail, CallBackUrl, ErrorUrl.
-     *                          Omit PaymentMethodId to use the first available method.
+     * @param  array  $payload  Required: InvoiceValue, PaymentMethodId (or SessionId).
      */
     public function executePayment(array $payload): array
     {
-        // Resolve PaymentMethodId when not explicitly provided
-        if (! isset($payload['PaymentMethodId']) || $payload['PaymentMethodId'] === null) {
-            $methods = $this->initiatePayment(
-                (float) ($payload['InvoiceValue'] ?? 0),
-                $payload['DisplayCurrencyIso'] ?? 'SAR'
-            );
-            $firstMethod = collect($methods['Data']['PaymentMethods'] ?? [])
-                ->first(fn ($m) => ($m['IsDirectPayment'] ?? false) === false);
-            $payload['PaymentMethodId'] = $firstMethod['PaymentMethodId'] ?? null;
-        }
-
-        // Strip null values — MF rejects them even for optional fields
         $payload = array_filter($payload, fn ($v) => $v !== null);
 
         $response = Http::withHeaders($this->headers())
@@ -267,6 +289,20 @@ class MyFatoorahService
         }
 
         return $body;
+    }
+
+    /**
+     * Parse "order_id:5" / "booking_id:12" back into ['type' => 'order', 'id' => 5].
+     * Used by the webhook to locate the pending Payment for SDK-flow invoices,
+     * whose invoice_id is unknown to us until MyFatoorah reports it back.
+     */
+    public static function parseUserDefinedField(?string $userDefinedField): ?array
+    {
+        if ($userDefinedField && preg_match('/^(order|booking)_id:(\d+)$/', $userDefinedField, $m)) {
+            return ['type' => $m[1], 'id' => (int) $m[2]];
+        }
+
+        return null;
     }
 
     /**

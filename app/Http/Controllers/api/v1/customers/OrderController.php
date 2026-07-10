@@ -53,23 +53,31 @@ class OrderController extends Controller
     }
 
     /**
-     * Create an order from the cart and open a MyFatoorah invoice in one shot.
+     * Create an order from the cart and kick off a MyFatoorah payment.
      *
      * Flow:
-     *   1. Validate cart, stock, address.
+     *   1. Validate cart, stock (read-only check, no reservation), address.
      *   2. Calculate total server-side (never trust the client).
-     *   3. Create Order (pending) + decrement inventory inside a transaction.
-     *   4. Create the MF invoice via ExecutePayment.
-     *   5. Create a pending Payment record with the invoice_id.
-     *   6. Return { order, payment: { invoice_id, payment_url, amount } }.
+     *   3. Create Order + OrderItems as 'pending' — NO stock decrement, NO
+     *      cart deletion yet. Nothing irreversible happens before payment is
+     *      confirmed, so an abandoned/failed payment leaves no side effects.
+     *   4. payment_source=web → create a MyFatoorah "SendPayment" invoice
+     *      (shows ALL enabled payment methods, customer picks one) and return
+     *      payment_url for the app to open in a WebView.
+     *      payment_source=sdk → do NOT call MyFatoorah at all. The Flutter/
+     *      native SDK talks to MyFatoorah directly on-device. We just return
+     *      the amount + customer fields + the customer_reference/
+     *      user_defined_field the app MUST pass to the SDK call, so our
+     *      webhook can match the resulting invoice back to this order.
+     *   5. Create a pending Payment record (invoice_id is set now for web,
+     *      or left null for sdk — the webhook fills it in on first callback).
      *
-     * The app then:
-     *   - SDK  → passes payment_url to the MF native payment sheet.
-     *   - Web  → opens payment_url in a WebView.
-     *
-     * The webhook (POST /v1/myfatoorah/webhook) handles the rest:
-     *   paid    → update payment to completed (order stays pending for admin).
-     *   failed  → cancel order, restore stock, update payment to failed.
+     * The webhook (POST /v1/myfatoorah/webhook) is the single source of truth:
+     *   paid   → lock + re-check stock, decrement it, clear matching cart
+     *            rows, mark payment completed (order stays pending for admin).
+     *            If stock ran out in the meantime, auto-refund + cancel.
+     *   failed → mark payment failed, cancel order. Cart/stock were never
+     *            touched, so there's nothing to roll back.
      */
     public function store(Request $request)
     {
@@ -85,6 +93,7 @@ class OrderController extends Controller
         $request->validate([
             'customer_address_id' => ['required', 'exists:customer_addresses,id'],
             'coupon_code' => ['nullable', 'string', 'exists:coupons,code'],
+            'payment_source' => ['required', 'in:web,sdk'],
         ]);
 
         $cartItems = Cart::where('customer_id', $customer->id)->with('product')->get();
@@ -124,10 +133,15 @@ class OrderController extends Controller
         $shippingFee = round(Setting::first()?->shipping_fee ?? 0, 2);
         $totalPrice = round($subtotalPriceAfterDiscount + $shippingFee, 2);
 
+        $paymentSource = $request->payment_source;
+
         try {
             DB::beginTransaction();
 
-            // ── Inventory check + lock ────────────────────────────────────────
+            // ── Inventory check (read-only) ───────────────────────────────────
+            // We only verify availability here — stock is not reserved/decremented
+            // until the webhook confirms payment, per design (nothing irreversible
+            // happens before payment succeeds).
             foreach ($cartItems as $cartItem) {
                 $variant = ProductVariant::where('id', $cartItem->product_variant_id)
                     ->lockForUpdate()
@@ -182,28 +196,61 @@ class OrderController extends Controller
                     'quantity' => $cartItem->quantity,
                     'total_price' => $cartItem->total_price,
                 ]);
-
-                ProductVariant::find($cartItem->product_variant_id)
-                    ->decrement('quantity', $cartItem->quantity);
             }
 
-            // ── Create MyFatoorah invoice ─────────────────────────────────────
+            $phone = MyFatoorahService::splitPhone($customer->phone);
+            $customerReference = 'order-'.$order->id;
+            $userDefinedField = 'order_id:'.$order->id;
+
+            // ── SDK flow: no backend MyFatoorah call ──────────────────────────
+            // The mobile app talks to MyFatoorah directly via the native SDK
+            // (InitiatePayment/ExecutePayment on-device, showing the native
+            // method picker). We just hand it the server-verified amount and
+            // the reference fields it MUST attach to its SDK call, so our
+            // webhook can find this order once MyFatoorah reports the invoice.
+            if ($paymentSource === 'sdk') {
+                Payment::create([
+                    'order_id' => $order->id,
+                    'invoice_id' => null,
+                    'amount' => $totalPrice,
+                    'currency' => 'SAR',
+                    'status' => 'pending',
+                    'payment_source' => 'sdk',
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => __('responses.order created successfully'),
+                    'data' => [
+                        'order' => $order->fresh(),
+                        'payment' => [
+                            'payment_source' => 'sdk',
+                            'amount' => $totalPrice,
+                            'currency' => 'SAR',
+                            'customer_reference' => $customerReference,
+                            'user_defined_field' => $userDefinedField,
+                            'customer_name' => $customer->name,
+                            'customer_email' => $customer->email ?? 'noreply@fillo.app',
+                            'mobile_country_code' => $phone['country_code'],
+                            'customer_mobile' => $phone['mobile'],
+                        ],
+                    ],
+                ], 201);
+            }
+
+            // ── Web flow: create a hosted invoice showing ALL payment methods ──
             // MF requires InvoiceValue to exactly equal the sum of InvoiceItems
             // (Quantity * UnitPrice), and rejects negative UnitPrice (no native
             // "discount" line). Since our total already factors in discount +
             // shipping, we send a single summary line so it always matches
             // InvoiceValue exactly, regardless of rounding/discount/shipping.
             $callbackBase = config('app.url').'/api/v1/myfatoorah';
-            $phone = MyFatoorahService::splitPhone($customer->phone);
 
-            $invoiceItems = [[
-                'ItemName' => 'Order '.$order->order_number,
-                'Quantity' => 1,
-                'UnitPrice' => $totalPrice,
-            ]];
-
-            $mfResponse = app(MyFatoorahService::class)->executePayment([
+            $mfResponse = app(MyFatoorahService::class)->sendPayment([
                 'CustomerName' => $customer->name,
+                'NotificationOption' => 'LNK',
                 'DisplayCurrencyIso' => 'SAR',
                 'MobileCountryCode' => $phone['country_code'],
                 'CustomerMobile' => $phone['mobile'],
@@ -212,14 +259,18 @@ class OrderController extends Controller
                 'CallBackUrl' => $callbackBase.'/callback',
                 'ErrorUrl' => $callbackBase.'/error',
                 'Language' => app()->getLocale() === 'ar' ? 'AR' : 'EN',
-                'CustomerReference' => 'order-'.$order->id,
+                'CustomerReference' => $customerReference,
                 'CustomerCivilId' => $customer->national_address_short_number,
-                'UserDefinedField' => 'order_id:'.$order->id,
-                'InvoiceItems' => $invoiceItems,
+                'UserDefinedField' => $userDefinedField,
+                'InvoiceItems' => [[
+                    'ItemName' => 'Order '.$order->order_number,
+                    'Quantity' => 1,
+                    'UnitPrice' => $totalPrice,
+                ]],
             ]);
 
             $invoiceId = (string) ($mfResponse['Data']['InvoiceId'] ?? '');
-            $paymentUrl = $mfResponse['Data']['PaymentURL'] ?? '';
+            $paymentUrl = $mfResponse['Data']['InvoiceURL'] ?? '';
 
             // ── Create pending payment record ─────────────────────────────────
             Payment::create([
@@ -228,9 +279,8 @@ class OrderController extends Controller
                 'amount' => $totalPrice,
                 'currency' => 'SAR',
                 'status' => 'pending',
+                'payment_source' => 'web',
             ]);
-
-            Cart::where('customer_id', $customer->id)->delete();
 
             DB::commit();
 
@@ -240,6 +290,7 @@ class OrderController extends Controller
                 'data' => [
                     'order' => $order->fresh(),
                     'payment' => [
+                        'payment_source' => 'web',
                         'invoice_id' => $invoiceId,
                         'payment_url' => $paymentUrl,
                         'amount' => $totalPrice,
