@@ -309,6 +309,9 @@ class ServiceController extends Controller
             ->when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
                 $query->where('order_status', $request->status);
             })
+            ->whereHas('payment', function ($query) {
+                $query->where('status', '!=', 'pending');
+            })
             ->orderBy('created_at', 'desc')
             ->paginate();
 
@@ -325,6 +328,9 @@ class ServiceController extends Controller
 
         $booking = Booking::where('customer_id', $customer->id)
             ->with(['service', 'customerAddress', 'payment'])
+            ->whereHas('payment', function ($query) {
+                $query->where('status', '!=', 'pending');
+            })
             ->findOrFail($booking_id);
 
         return response()->json([

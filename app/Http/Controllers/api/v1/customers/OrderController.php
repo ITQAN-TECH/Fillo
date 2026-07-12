@@ -30,6 +30,9 @@ class OrderController extends Controller
             ->when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
                 $query->where('order_status', $request->status);
             })
+            ->whereHas('payment', function ($query) {
+                $query->where('status', '!=', 'pending');
+            })
             ->latest()
             ->paginate();
 
@@ -43,7 +46,9 @@ class OrderController extends Controller
     public function show($order_id)
     {
         $customer = Auth::guard('customers')->user();
-        $order = Order::where('customer_id', $customer->id)->findOrFail($order_id);
+        $order = Order::where('customer_id', $customer->id)->whereHas('payment', function ($query) {
+            $query->where('status', '!=', 'pending');
+        })->findOrFail($order_id);
 
         return response()->json([
             'success' => true,

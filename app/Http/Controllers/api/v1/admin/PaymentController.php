@@ -60,7 +60,7 @@ class PaymentController extends Controller
             ->latest()->paginate();
 
         $report = [];
-        $report['total_payments'] = Payment::count();
+        $report['total_payments'] = Payment::where('status', '!=', 'pending')->count();
         $report['completed_payments'] = Payment::where('status', 'completed')->count();
         $report['failed_payments'] = Payment::where('status', 'failed')->count();
         $report['refunded_payments'] = Payment::where('status', 'refunded')->count();
@@ -105,7 +105,7 @@ class PaymentController extends Controller
         $statistics = [];
 
         // Overall statistics
-        $statistics['total_payments'] = Payment::count();
+        $statistics['total_payments'] = Payment::where('status', '!=', 'pending')->count();
         $statistics['total_amount'] = Payment::where('status', 'completed')->sum('amount');
         $statistics['total_refunded_amount'] = Payment::where('status', 'refunded')->sum('refunded_amount');
 
@@ -119,8 +119,8 @@ class PaymentController extends Controller
 
         // By type
         $statistics['by_type'] = [
-            'orders' => Payment::whereNotNull('order_id')->count(),
-            'bookings' => Payment::whereNotNull('booking_id')->count(),
+            'orders' => Payment::where('status', '!=', 'pending')->whereNotNull('order_id')->count(),
+            'bookings' => Payment::where('status', '!=', 'pending')->whereNotNull('booking_id')->count(),
         ];
 
         // By payment method
@@ -130,7 +130,7 @@ class PaymentController extends Controller
             ->get();
 
         // Recent transactions
-        $statistics['recent_payments'] = Payment::latest()->take(10)->get();
+        $statistics['recent_payments'] = Payment::where('status', '!=', 'pending')->latest()->take(10)->get();
 
         return response()->json([
             'success' => true,
