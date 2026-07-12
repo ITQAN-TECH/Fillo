@@ -232,6 +232,7 @@ class OrderController extends Controller
                         'order' => $order->fresh(),
                         'payment' => [
                             'payment_source' => 'sdk',
+                            'api_key'=> env('APP_ENV') === 'local' ? config('services.myfatoorah.test_api_key') : config('services.myfatoorah.live_api_key'),
                             'amount' => $totalPrice,
                             'currency' => 'SAR',
                             'customer_reference' => $customerReference,
