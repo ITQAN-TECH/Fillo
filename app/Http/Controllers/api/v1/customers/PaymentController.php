@@ -150,18 +150,28 @@ class PaymentController extends Controller
                 ->first();
 
             // SDK flow fallback: match by the reference the app attached to
-            // its on-device SDK call, then remember this invoice_id for next time.
+            // its on-device SDK call, then remember this invoice_id.
+            //
+            // IMPORTANT: do NOT require invoice_id IS NULL here. Each SDK
+            // payment *attempt* (e.g. retry after a declined card) gets its
+            // own brand-new MyFatoorah invoice, so a Payment's invoice_id
+            // gets overwritten on every attempt. Requiring it to still be
+            // null would only ever match the very first attempt — any later
+            // attempt's webhook (including the one that actually succeeds)
+            // would find nothing and silently be dropped. Payment::booking_id
+            // /order_id are unique (enforced at the DB level), so matching
+            // on {type}_id + status=pending alone is safe and always correct.
             if (! $payment) {
                 $udf = MyFatoorahService::parseUserDefinedField($invoiceData['UserDefinedField'] ?? null);
 
                 if ($udf) {
                     $payment = Payment::where($udf['type'].'_id', $udf['id'])
-                        ->whereNull('invoice_id')
+                        ->where('payment_source', 'sdk')
                         ->where('status', 'pending')
                         ->lockForUpdate()
                         ->first();
 
-                    if ($payment) {
+                    if ($payment && $payment->invoice_id !== $invoiceId) {
                         $payment->invoice_id = $invoiceId;
                         $payment->save();
                     }
