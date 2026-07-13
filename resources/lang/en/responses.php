@@ -641,4 +641,8 @@ return [
     'profile image deleted successfully' => 'Profile image deleted successfully',
     'Booking created successfully. Proceed to payment.' => 'Booking created successfully. Proceed to payment.',
 
+    'Payment Received' => 'Payment Received',
+    'Your order payment was received and is under review'=> 'Your order payment was received and is under review',
+    'Your booking payment was received and is under review'=> 'Your booking payment was received and is under review',
+
 ];

@@ -628,4 +628,8 @@ return [
 
     'profile image deleted successfully' => 'تم حذف الصورة الشخصية بنجاح',
     'Booking created successfully. Proceed to payment.' => 'تم إنشاء الحجز بنجاح. يرجى الدفع.',
+
+    'Payment Received' => 'تم الدفع بنجاح',
+    'Your order payment was received and is under review'=> 'تم الدفع لطلبك ويتم المراجعة',
+    'Your booking payment was received and is under review'=> 'تم الدفع لحجزك ويتم المراجعة',
 ];
