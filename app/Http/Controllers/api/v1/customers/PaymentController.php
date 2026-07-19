@@ -481,8 +481,12 @@ class PaymentController extends Controller
     public function show($payment_id)
     {
         $customer = Auth::guard('customers')->user();
-        $payment = Payment::whereHas('order', function ($query) use ($customer) {
-            $query->where('customer_id', $customer->id);
+        $payment = Payment::where(function ($query) use ($customer) {
+            $query->whereHas('order', function ($query) use ($customer) {
+                $query->where('customer_id', $customer->id);
+            })->orWhereHas('booking', function ($query) use ($customer) {
+                $query->where('customer_id', $customer->id);
+            });
         })->findOrFail($payment_id);
 
         return response()->json([
