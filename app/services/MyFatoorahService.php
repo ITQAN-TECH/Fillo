@@ -267,7 +267,7 @@ class MyFatoorahService
      * do NOT call makeRefund() directly with $payment->amount.
      *
      * @throws \Exception if there's no PaymentId to refund against, or the
-     *                     refund request itself fails.
+     *                    refund request itself fails.
      */
     public function refundPayment(\App\Models\Payment $payment, string $comment): array
     {

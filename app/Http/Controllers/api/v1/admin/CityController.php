@@ -69,6 +69,7 @@ class CityController extends Controller
                     });
             });
         })->with('country')->get();
+
         return response()->json([
             'success' => true,
             'message' => __('responses.all cities'),

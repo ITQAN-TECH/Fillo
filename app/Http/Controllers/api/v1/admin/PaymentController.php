@@ -38,20 +38,20 @@ class PaymentController extends Controller
         })->when($request->has('search'), function ($query) use ($request) {
             $search = $request->search;
             $query->where(function ($query) use ($search) {
-                $query->where('transaction_id', 'like', '%' . $search . '%')
-                    ->orWhere('amount', 'like', '%' . $search . '%')
+                $query->where('transaction_id', 'like', '%'.$search.'%')
+                    ->orWhere('amount', 'like', '%'.$search.'%')
                     ->orWhereHas('order', function ($query) use ($search) {
-                        $query->where('order_number', 'like', '%' . $search . '%')
+                        $query->where('order_number', 'like', '%'.$search.'%')
                             ->orWhereHas('customer', function ($query) use ($search) {
-                                $query->where('name', 'like', '%' . $search . '%')
-                                    ->orWhere('email', 'like', '%' . $search . '%')
-                                    ->orWhere('phone', 'like', '%' . $search . '%');
+                                $query->where('name', 'like', '%'.$search.'%')
+                                    ->orWhere('email', 'like', '%'.$search.'%')
+                                    ->orWhere('phone', 'like', '%'.$search.'%');
                             });
                     })->orWhereHas('booking', function ($query) use ($search) {
                         $query->whereHas('customer', function ($query) use ($search) {
-                            $query->where('name', 'like', '%' . $search . '%')
-                                ->orWhere('email', 'like', '%' . $search . '%')
-                                ->orWhere('phone', 'like', '%' . $search . '%');
+                            $query->where('name', 'like', '%'.$search.'%')
+                                ->orWhere('email', 'like', '%'.$search.'%')
+                                ->orWhere('phone', 'like', '%'.$search.'%');
                         });
                     });
             });

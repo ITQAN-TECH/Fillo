@@ -91,4 +91,3 @@ class DeleteStalePendingOrders extends Command
         return self::SUCCESS;
     }
 }
-

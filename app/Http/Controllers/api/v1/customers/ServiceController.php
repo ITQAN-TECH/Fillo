@@ -222,7 +222,7 @@ class ServiceController extends Controller
                         'booking' => $booking->fresh(),
                         'payment' => [
                             'payment_source' => 'sdk',
-                            'api_key'=> env('APP_ENV') === 'local' ? config('services.myfatoorah.test_api_key') : config('services.myfatoorah.live_api_key'),
+                            'api_key' => env('APP_ENV') === 'local' ? config('services.myfatoorah.test_api_key') : config('services.myfatoorah.live_api_key'),
                             'amount' => $salePriceAfterDiscount,
                             'currency' => 'SAR',
                             'customer_reference' => $customerReference,

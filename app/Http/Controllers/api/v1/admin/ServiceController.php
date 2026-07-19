@@ -38,10 +38,10 @@ class ServiceController extends Controller
         })->when($request->has('status') && $request->status != 'all', function ($query) use ($request) {
             $query->where('status', $request->status == 'active' ? true : false);
         })
-        ->whereHas('payments', function ($query) {
-            $query->where('status', '!=', 'pending');
-        })
-        ->latest()->paginate();
+            ->whereHas('payments', function ($query) {
+                $query->where('status', '!=', 'pending');
+            })
+            ->latest()->paginate();
         $report = [];
         $report['services_count'] = Service::count();
         $report['active_services_count'] = Service::where('status', true)->count();

@@ -11,6 +11,7 @@ use App\Models\ProductVariant;
 use App\Notifications\customers\OrderCancelledNotification;
 use App\services\MyFatoorahService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -404,7 +405,7 @@ class PaymentController extends Controller
                 collect([$order->customer]),
                 new OrderCancelledNotification($order, 0),
                 'responses.Payment Failed',
-                'responses.Your order was cancelled due to payment failure',
+                'responses.An error occurred during the payment process. Please try again.',
                 true,
                 [],
                 ['type' => 'order_payment_failed', 'order_id' => $order->id]
@@ -421,7 +422,7 @@ class PaymentController extends Controller
                 collect([$booking->customer]),
                 null,
                 'responses.Payment Failed',
-                'responses.Your booking was cancelled due to payment failure',
+                'responses.An error occurred during the payment process. Please try again.',
                 true,
                 [],
                 ['type' => 'booking_payment_failed', 'booking_id' => $booking->id]
@@ -463,7 +464,7 @@ class PaymentController extends Controller
         $order->update([
             'order_status' => 'cancelled',
             'cancellation_reason' => 'administrative',
-            'admin_notes' => 'Stock ran out after payment was collected — refund issued automatically',
+            'admin_notes' => 'نفدت الكمية بعد تحصيل المبلغ — تم إصدار استرداد تلقائياً.',
         ]);
 
         dispatch(new SendNotificationJob(
@@ -475,5 +476,19 @@ class PaymentController extends Controller
             [],
             ['type' => 'order_out_of_stock_refund', 'order_id' => $order->id]
         ));
+    }
+
+    public function show($payment_id)
+    {
+        $customer = Auth::guard('customers')->user();
+        $payment = Payment::whereHas('order', function ($query) use ($customer) {
+            $query->where('customer_id', $customer->id);
+        })->findOrFail($payment_id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment details',
+            'payment' => $payment,
+        ]);
     }
 }

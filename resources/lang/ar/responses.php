@@ -630,6 +630,10 @@ return [
     'Booking created successfully. Proceed to payment.' => 'تم إنشاء الحجز بنجاح. يرجى الدفع.',
 
     'Payment Received' => 'تم الدفع بنجاح',
-    'Your order payment was received and is under review'=> 'تم الدفع لطلبك ويتم المراجعة',
-    'Your booking payment was received and is under review'=> 'تم الدفع لحجزك ويتم المراجعة',
+    'Your order payment was received and is under review' => 'تم الدفع لطلبك ويتم المراجعة',
+    'Your booking payment was received and is under review' => 'تم الدفع لحجزك ويتم المراجعة',
+    'Payment Failed' => 'فشلت عملية الدفع',
+    'An error occurred during the payment process. Please try again.' => ' فشلت عملية الدفع. يرجى المحاولة مرة أخرى.',
+    'Order Cancelled - Refund Issued' => 'تم إلغاء الطلب وتم إصدار الاسترداد',
+    'Your order was cancelled because an item went out of stock. A refund has been issued.' => 'تم إلغاء الطلب بسبب أن منتج واحد غير متاح. تم إصدار الاسترداد',
 ];

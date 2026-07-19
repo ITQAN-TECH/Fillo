@@ -86,6 +86,9 @@ Route::group(['prefix' => 'v1/customers', 'middleware' => ['auth:customers', Che
     Route::get('bookings/{booking_id}', [ServiceController::class, 'bookingDetails']);
     Route::post('bookings/{booking_id}/cancel', [ServiceController::class, 'cancelBooking']);
     Route::post('bookings/{booking_id}/rate', [ServiceController::class, 'rateService']);
+
+    // Payment Routes
+    Route::get('payments/{payment_id}', [PaymentController::class, 'show']);
 });
 
 // MyFatoorah callback & webhook — no auth, called by MyFatoorah or browser redirects
