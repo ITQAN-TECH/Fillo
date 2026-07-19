@@ -214,7 +214,7 @@ class OrderController extends Controller
             // the reference fields it MUST attach to its SDK call, so our
             // webhook can find this order once MyFatoorah reports the invoice.
             if ($paymentSource === 'sdk') {
-                Payment::create([
+                $payment = Payment::create([
                     'order_id' => $order->id,
                     'invoice_id' => null,
                     'amount' => $totalPrice,
@@ -241,6 +241,7 @@ class OrderController extends Controller
                             'customer_email' => $customer->email ?? 'noreply@fillo.app',
                             'mobile_country_code' => $phone['country_code'],
                             'customer_mobile' => $phone['mobile'],
+                            'payment_id' => $payment->id,
                         ],
                     ],
                 ], 201);
@@ -279,7 +280,7 @@ class OrderController extends Controller
             $paymentUrl = $mfResponse['Data']['InvoiceURL'] ?? '';
 
             // ── Create pending payment record ─────────────────────────────────
-            Payment::create([
+            $payment = Payment::create([
                 'order_id' => $order->id,
                 'invoice_id' => $invoiceId,
                 'amount' => $totalPrice,
@@ -301,6 +302,7 @@ class OrderController extends Controller
                         'payment_url' => $paymentUrl,
                         'amount' => $totalPrice,
                         'currency' => 'SAR',
+                        'payment_id' => $payment->id,
                     ],
                 ],
             ], 201);

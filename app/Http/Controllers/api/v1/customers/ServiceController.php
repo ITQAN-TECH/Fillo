@@ -204,7 +204,7 @@ class ServiceController extends Controller
 
             // ── SDK flow: no backend MyFatoorah call ──────────────────────────
             if ($paymentSource === 'sdk') {
-                Payment::create([
+                $payment = Payment::create([
                     'booking_id' => $booking->id,
                     'invoice_id' => null,
                     'amount' => $salePriceAfterDiscount,
@@ -231,6 +231,7 @@ class ServiceController extends Controller
                             'customer_email' => $customer->email ?? 'noreply@fillo.app',
                             'mobile_country_code' => $phone['country_code'],
                             'customer_mobile' => $phone['mobile'],
+                            'payment_id' => $payment->id,
                         ],
                     ],
                 ], 201);
@@ -264,7 +265,7 @@ class ServiceController extends Controller
             $paymentUrl = $mfResponse['Data']['InvoiceURL'] ?? '';
 
             // ── Create pending payment record ─────────────────────────────────
-            Payment::create([
+            $payment = Payment::create([
                 'booking_id' => $booking->id,
                 'invoice_id' => $invoiceId,
                 'amount' => $salePriceAfterDiscount,
@@ -286,6 +287,7 @@ class ServiceController extends Controller
                         'payment_url' => $paymentUrl,
                         'amount' => $salePriceAfterDiscount,
                         'currency' => 'SAR',
+                        'payment_id' => $payment->id,
                     ],
                 ],
             ], 201);
