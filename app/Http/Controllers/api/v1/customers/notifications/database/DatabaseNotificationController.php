@@ -4,6 +4,7 @@ namespace App\Http\Controllers\api\v1\customers\notifications\database;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Auth;
 
 class DatabaseNotificationController extends Controller
@@ -16,22 +17,27 @@ class DatabaseNotificationController extends Controller
         ]);
 
         $customer = Auth::guard('customers')->user();
-        $query = $customer->notifications();
+        $query = DatabaseNotification::where('notifiable_id', $customer->id)
+            ->where('notifiable_type', get_class($customer));
 
-        // تطبيق فلاتر الحالة والترتيب
+        // تطبيق فلاتر الحالة
         if ($request->has('status')) {
-            $status = strtolower($request->input('status'));
+            $status = strtolower($request->query('status'));
             if ($status === 'read') {
                 $query->whereNotNull('read_at');
             } elseif ($status === 'unread') {
                 $query->whereNull('read_at');
             }
         }
-        $sortBy = $request->input('sort_by', 'latest');
-        ($sortBy === 'oldest') ? $query->oldest() : $query->latest();
 
-        // جلب الإشعارات
-        $notifications = $query->paginate();
+        // تطبيق الترتيب
+        $sortBy = $request->query('sort_by', 'latest');
+
+        if ($sortBy === 'oldest') {
+            $notifications = $query->orderBy('created_at', 'asc')->paginate();
+        } else {
+            $notifications = $query->orderBy('created_at', 'desc')->paginate();
+        }
 
         return response()->json([
             'success' => true,
